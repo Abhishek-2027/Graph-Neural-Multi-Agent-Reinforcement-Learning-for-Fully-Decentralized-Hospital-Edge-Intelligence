@@ -1,0 +1,351 @@
+Project Implementation Plan
+GraphMARL
+Graph Neural Multi-Agent Reinforcement Learning for Fully Decentralized Peer-to-Peer Hospital Edge Orchestration
+A Comprehensive Implementation Report — Prepared for Project Approval
+Prepared by: Abhi
+Institution: IIITDM Kurnool — Artificial Intelligence and Data Science
+Date: July 2026
+Table of Contents
+TOC \h \o "1-3"
+1. Executive Summary
+Hospitals increasingly run AI inference workloads — diagnosis support, continuous monitoring, and alerting — on edge devices distributed across departments such as the ICU, radiology, the emergency room, and general wards. The systems in current use, including the most recent published baseline this project builds on, rely on a logically centralized scheduler or orchestrator to decide which device executes which task. That design has a structural weakness: if the central component fails or becomes unreachable, task scheduling breaks across the entire hospital, at exactly the moments — network outages, power instability, rural or low-connectivity settings — when scheduling reliability matters most.
+This project proposes GraphMARL, a fully decentralized alternative in which every department is an autonomous edge node. Each node holds a task queue, a local decision engine, and knowledge of only its immediate neighbors — gained through lightweight periodic exchanges, never a global broadcast. Decisions about whether to execute a task locally, delay it, or hand it to a neighbor are made using a Graph Neural Network that encodes the hospital's communication topology, combined with a Multi-Agent Reinforcement Learning policy that is trained to respect task deadlines and a clinically meaningful Health Severity Index.
+The report that follows lays out the research problem, the gap in existing work, the complete system architecture, the mathematical formulation of each component, a phase-by-phase implementation plan, the technology stack, the evaluation methodology, and a realistic timeline. It is written as a pre-implementation document to be reviewed and approved before development and paper-writing begin.
+2. Problem Statement
+Hospitals run AI tasks — diagnosis, monitoring, alerts — on edge devices spread across departments: ICU, radiology, ER, and wards. Most existing systems use a central server to decide which device handles which task. That central server is a single point of failure: if it goes down, scheduling breaks hospital-wide.
+This project removes the central server entirely. Each edge node decides for itself, communicating only with its nearby neighbor nodes — in the same way routers exchange information only with adjacent routers — whether to run a task locally, wait, or hand it off to a neighbor. The decision is based on the task's deadline and clinical criticality (life-critical versus routine). No single node ever has the full picture of hospital-wide resource state.
+2.1 Core Research Question
+How can autonomous hospital edge devices collaboratively schedule latency-critical AI tasks without relying on any centralized coordinator, while maintaining high resource utilization, minimizing deadline violations, and remaining robust to communication failures and node crashes?
+3. Motivation and Research Gap
+The starting point for this project is a recent healthcare task-offloading framework that combines a Hybrid Transformer + BiLSTM feature extractor, a Health Severity Index for task prioritization, a Stacked CNN for state compression, and an Uncertainty-Aware Distributed Deep Reinforcement Learning agent for offloading decisions across Cloud–Edge tiers. That framework is technically strong but, like the rest of the literature, still assumes a logically centralized or globally synchronized decision process. The table below summarizes where the existing body of work stops short.
+Existing Limitation
+Gap Left Open
+Broker-based healthcare scheduling (e.g. FairHealth, cooperative healthcare scheduling frameworks)
+Coordinator-dependent — still a single point of failure, even when the learning is distributed
+Fully decentralized peer-to-peer offloading research
+Studied mainly for vehicular and generic mobile networks, not for hospital department topologies or clinical urgency
+Deep RL healthcare offloading (the uploaded baseline paper)
+Strong on feature extraction and prioritization, but the decision layer still depends on a compact global-ish state and centralized training
+Edge offloading research generally
+A 2026 survey found most work is evaluated only in simulators (iFogSim, NS-3) and rarely validated on real edge hardware
+No existing work combines all of the following in one framework: zero central server, deadline- and criticality-aware decisions, a hospital department topology, and validation on real hardware rather than simulation alone. That combination is the contribution of this project.
+4. Research Objectives and Contributions
+The project is structured around seven contributions, each addressing a specific gap identified above.
+A fully decentralized peer-to-peer hospital edge orchestration architecture with no central scheduler, broker, or leader node.
+A dynamic hospital graph representation in which departments are nodes and communication links are edges, with continuously changing node and edge features.
+A Graph Neural Network (GraphSAGE-based) that lets each node make offloading decisions using only aggregated neighbor information, never the full graph.
+A Multi-Agent Reinforcement Learning framework, one policy per department, trained to jointly optimize latency, energy, resource utilization, and clinical urgency.
+A lightweight peer negotiation protocol that exchanges compact embeddings and predicted completion times instead of full system state, reducing communication overhead.
+Failure-aware graph updating: automatic removal of unresponsive neighbors, stale-information handling, and conflict resolution when multiple nodes target the same neighbor simultaneously.
+Real hardware validation on a Jetson-based hospital edge testbed under injected network delay, packet loss, and node failures — not simulation alone.
+5. Feasibility Assessment
+Aspect
+Rating
+Notes
+Technical feasibility
+5 / 5
+Buildable with Python, standard ML/RL libraries, and 3–4 Jetson boards
+Research novelty
+4 / 5
+Strong if the GNN + MARL decision layer is genuinely new, not just a re-wired broker
+Publication potential
+4 / 5
+Sufficient for a systems-and-AI contribution if hardware validation is included
+Hardware feasibility
+5 / 5
+Lab-scale: a few Jetsons standing in for hospital departments
+Mathematical depth
+4 / 5
+GNN aggregation, multi-objective reward, and consensus formulation are non-trivial
+Overall difficulty
+High
+Ten interacting layers; scope should be staged across phases
+A caution carried over from the review of the initial proposal: simply replacing a centralized broker with peer-to-peer messaging is not, by itself, a strong enough contribution — a reviewer could reasonably describe that as re-wiring the architecture without a new decision-making algorithm. The Graph Neural Network and Multi-Agent RL decision layer described in this report is what elevates the project from an engineering exercise to a research contribution.
+6. System Architecture Overview
+The system is organized as twelve cooperating layers, from raw sensor ingestion to the final local offloading decision. Every node in the hospital graph runs an identical copy of this stack; no node runs special centralized logic.
+6.1 High-Level Data Flow
+Medical IoT devices → Hybrid Transformer–BiLSTM feature extraction → Health Severity Index estimation → task characterization → per-department edge node → neighbor discovery and messaging → distributed graph construction → Graph Neural Network encoder → Multi-Agent Reinforcement Learning policy → local execution, neighbor offload, or queue decision.
+6.2 Hospital Topology (Example)
+Departments form a graph rather than a hierarchy. A representative topology used for this project:
+ICU — connected to Ward and Radiology
+ER — connected to Ward
+Ward — connected to ICU, ER, Lab, and Pharmacy
+Radiology — connected to ICU
+Lab and Pharmacy — connected to Ward
+Each edge in this graph is a real network link (or its emulated equivalent on the testbed) with its own delay, packet loss, and bandwidth characteristics.
+7. Layer-by-Layer Component Design
+7.1 Layer 1 — Healthcare AI Workload Layer
+Generates the realistic task workload the scheduler must handle, using small pretrained or pruned models rather than training new medical AI from scratch (the AI task itself does not need to be novel; it exists to produce realistic load). Representative tasks:
+Chest X-ray classification
+ECG anomaly detection
+CT segmentation
+Blood report analysis
+ICU vital-sign monitoring
+Emergency alert detection
+7.2 Layer 2 — Task Profiler
+Converts every incoming task into structured scheduling metadata: task ID, arrival time, deadline, estimated execution time, model size, input size, originating department, Health Severity Index, model confidence, and energy requirement.
+7.3 Layer 3 — Health Severity Engine
+Rather than a coarse Low/Medium/High/Critical label alone, the Health Severity Index (HSI) is computed as a weighted function of vital signs and clinical context, then used directly as a continuous scheduling priority:
+HSI = w₁·HeartRateScore + w₂·BloodPressureScore + w₃·SpO₂Score + w₄·TemperatureScore + w₅·RespirationScore,  HSI ∈ [0, 1]
+HSI Range
+Category
+Example
+0.0 – 0.3
+Low
+Routine chest X-ray, deadline in seconds
+0.3 – 0.6
+Medium
+Standard monitoring check
+0.6 – 0.8
+High
+Abnormal vitals requiring prompt review
+0.8 – 1.0
+Critical
+ICU cardiac event, deadline ~150 ms
+7.4 Layer 4 — Hospital Graph Construction
+The hospital is modeled as a graph G = (V, E), where each vertex is a department and each edge is a communication link. Node and edge features are summarized below.
+Feature Set
+Contents
+Node features (per department)
+CPU, GPU, memory, bandwidth, current queue length, average latency, energy, HSI statistics of queued tasks, available models
+Edge features (per link)
+Network delay, packet loss, available bandwidth, hop count, trust score, historical reliability
+7.5 Layer 5 — Neighbor Discovery and Messaging
+Each node periodically exchanges a compact status message with its direct neighbors only — never a hospital-wide broadcast: a compressed embedding, current queue length, remaining GPU capacity, average delay, battery/power state, and a timestamp. This keeps communication overhead low and bounded regardless of hospital size.
+7.6 Layer 6 — Graph Neural Network Encoder
+This is the central methodological contribution. Instead of a node manually picking the neighbor with, say, the lowest queue length, it computes a learned embedding that summarizes its local neighborhood:
+zᵢ = GNN(xᵢ, N(i))
+where xᵢ is node i's local feature vector and N(i) is the set of its direct neighbors. GraphSAGE is the recommended starting architecture because its neighborhood-aggregation formulation does not require access to the full graph at inference time:
+hᵢ^(k+1) = σ( W₁·hᵢ^(k) + W₂·MEAN({hⱼ^(k) : j ∈ N(i)}) )
+A Graph Attention Network (GAT/GATv2) is a natural follow-up extension, learning an attention weight αᵢⱼ over each neighbor rather than a plain mean, so that a node can automatically learn to favor a lightly loaded neighbor over a congested one without being told to.
+7.7 Layer 7 — Multi-Agent Reinforcement Learning
+Each department owns an independent policy (ICU agent, ER agent, Ward agent, Radiology agent, and so on). Every agent observes only its local state, its neighbor embeddings from Layer 6, and the current task's metadata.
+Action space
+Execute locally
+Offload to a specific neighbor
+Delay / hold in queue
+Reject the task
+Split the task across neighbors (extension)
+Replicate the task for redundancy (extension)
+Reward function
+A multi-objective reward balances system efficiency against clinical urgency:
+R = α·U − β·L − γ·E − δ·D − η·C + λ·P
+where U is resource utilization, L is latency, E is energy consumption, D is the deadline-miss penalty, C is communication overhead, and P rewards successful completion of high-severity tasks. PPO is the recommended algorithm over vanilla DQN, since it tends to handle the larger, more continuous state spaces and decentralized policy updates this setting produces more gracefully.
+7.8 Layer 8 — Peer Negotiation Protocol
+Rather than a bare "can you execute this?" query, a node requesting help sends a REQUEST and each neighbor replies with its expected finish time, predicted queue state, confidence, and remaining energy. The requesting node selects the best offer. This turns offloading into lightweight decentralized resource discovery instead of a blind handoff.
+7.9 Layer 9 — Distributed Consensus
+Multiple busy nodes may attempt to offload to the same free neighbor simultaneously. This project addresses that with a lightweight reservation or auction mechanism — a token-based reservation, timestamp priority, or a small distributed vote — so that offers are not overcommitted. This conflict-resolution layer is one of the project's explicit novel contributions, since it is rarely handled in prior decentralized-offloading work.
+7.10 Layer 10 — Failure Handling
+Failure Mode
+Handling Strategy
+Node crash
+Heartbeat timeout removes the node from the local neighbor table
+Stale neighbor information
+Older status messages are down-weighted during graph aggregation
+Simultaneous offload to one neighbor
+Reservation token / lightweight auction (Layer 9)
+Network partition
+Disconnected subgraphs continue operating autonomously
+False resource reporting
+Addressed by the trust module (Layer 11); out of scope for Phase 1
+7.11 Layer 11 — Trust Module (Extension)
+A forward-looking extension rather than a Phase 1 deliverable: a per-neighbor trust score in [0, 1], derived from successful task completions, false advertisements, latency history, and failure rate, added as an additional node feature that the GNN can learn to weight.
+7.12 Layer 12 — Real Hardware Deployment
+Each simulated department is mapped to a physical Jetson board running the identical software stack: local scheduler, GNN inference, RL policy, and MQTT or gRPC based peer messaging, with medical inference executed via TensorRT or TFLite. Linux tc/netem is used to inject realistic network delay, packet loss, and bandwidth constraints to emulate patchy hospital Wi-Fi.
+8. Mathematical Formulation Summary
+Component
+Formulation
+Hospital graph
+G = (V, E); V = departments, E = communication links
+Node feature
+xᵢ = [CPU, Queue, Deadline, HSI, Bandwidth, Energy]
+Health Severity Index
+HSI = w₁·HR + w₂·BP + w₃·SpO₂ + w₄·Temp + w₅·Resp, HSI ∈ [0,1]
+GraphSAGE aggregation
+hᵢ^(k+1) = σ(W₁hᵢ^(k) + W₂·MEAN(neighbor embeddings))
+Node embedding
+zᵢ = GNN(G)
+Policy
+π(aᵢ | zᵢ) via PPO
+Multi-objective reward
+R = α·U − β·L − γ·E − δ·D − η·C + λ·P
+System objective
+max( U − α·L − β·E − γ·D − δ·M + η·H )
+A design tension worth flagging explicitly for reviewers: standard GNN training assumes access to the full graph, while the project's premise is neighbor-only communication. This is resolved by using GraphSAGE with neighbor sampling / a decentralized GNN training procedure rather than full-batch GCN training — this reconciliation is itself part of the contribution, and the report anticipates it will be a natural question at review.
+9. Problem-to-Solution Mapping
+Problem
+Solution
+Central scheduler is a single point of failure
+Fully decentralized peer-to-peer orchestration — no scheduler exists
+No node has global resource knowledge
+GraphSAGE neighbor aggregation produces a local, learned summary
+Dynamic congestion is hard to anticipate
+Multi-Agent RL policies learn adaptive, congestion-aware behavior
+Stale neighbor information
+Timestamp-aware, recency-weighted graph embeddings
+Negotiation adds latency for tight deadlines
+Lightweight embedding-based negotiation protocol (Layer 8)
+Multiple nodes pick the same neighbor
+Reservation / auction based conflict resolution (Layer 9)
+Nodes with fewer neighbors are structurally disadvantaged
+Fairness term folded into the reward function
+No trust mechanism for faulty/lying nodes
+Trust score extension (Layer 11)
+Node crashes disrupt scheduling
+Dynamic graph reconstruction on heartbeat timeout
+Prior work is simulation-only
+Real Jetson-based testbed with injected network impairment
+10. Implementation Plan
+The build is staged into ten phases, moving from a pure software simulator to full hardware validation. Each phase produces a working, testable artifact rather than deferring integration to the end.
+Phase I — Hospital Graph Simulator (Weeks 1–2)
+Build the graph topology, task generator, communication layer, and metrics logging
+Define Task and Node data structures (size, cpu_cycles, deadline, priority, patient_id, department)
+Node resource model: CPU, RAM, bandwidth, queue length, energy
+Phase II — Healthcare Workload Generation (Week 3)
+Integrate pretrained/pruned models for X-ray, ECG, and vital-sign anomaly detection
+Generate heterogeneous task streams with realistic size, deadline, and priority distributions
+Phase III — Health Severity Index (Week 3)
+Implement the HSI scoring function and category thresholds
+Wire HSI into both task priority and later reward shaping
+Phase IV — Dynamic Graph Representation (Week 4)
+Represent changing node/edge resource state as features
+Enforce local-only adjacency; no node may read global state
+Phase V — Graph Neural Network (Weeks 5–6)
+Implement and train a GraphSAGE encoder over node and edge features
+Validate neighbor-sampling based training against a full-batch GCN baseline for comparison only
+Phase VI — Multi-Agent PPO (Weeks 7–9)
+Implement one PPO policy per department, consuming GNN embeddings as state
+Train with the multi-objective reward function from Section 7.7
+Phase VII — Communication Layer (Week 10)
+Implement MQTT or gRPC based peer messaging
+Exchange only embeddings, timestamps, and predicted finish times — never full state
+Phase VIII — Robustness Module (Weeks 11–12)
+Inject node crashes, packet loss, and delayed heartbeats
+Implement and test the reservation/auction conflict-resolution mechanism
+Measure graceful degradation under each failure mode
+Phase IX — Jetson Deployment (Weeks 13–14)
+Deploy the identical software stack to 3–4 Jetson boards, one per department
+Apply Linux tc/netem to emulate patchy hospital network conditions
+Measure latency, CPU/GPU utilization, and power draw on real hardware
+Phase X — Experimental Evaluation (Weeks 15–16)
+Run the full baseline comparison described in Section 11
+Produce final plots, tables, and the results section for the paper draft
+10.1 Timeline Summary
+Weeks
+Phase
+Key Deliverable
+1–2
+Hospital Graph Simulator
+Working simulator with task/node model
+3
+Workload + HSI
+Realistic task stream with severity scoring
+4
+Dynamic Graph
+Live node/edge feature representation
+5–6
+GNN Encoder
+Trained GraphSAGE embeddings
+7–9
+Multi-Agent PPO
+Trained per-department policies
+10
+Communication Layer
+MQTT/gRPC peer messaging
+11–12
+Robustness Module
+Failure handling + conflict resolution
+13–14
+Jetson Deployment
+Running on real edge hardware
+15–16
+Evaluation
+Full results against all baselines
+11. Evaluation Plan
+11.1 Baselines
+Local-only execution (no offloading)
+Centralized broker scheduling
+Cloud–Edge scheduling
+The uploaded baseline paper's distributed DRL scheduler
+Greedy least-loaded neighbor offloading
+Random neighbor offloading
+GraphMARL (this project)
+11.2 Metrics
+Metric
+What It Captures
+Average latency / 95th-percentile latency
+Responsiveness under normal and tail conditions
+Deadline-miss rate
+Reliability for time-critical tasks
+Critical-task success rate
+Whether high-HSI tasks are protected
+Resource utilization
+Efficiency of workload distribution
+Energy consumption
+Sustainability, relevant for battery-backed edge devices
+Communication overhead
+Cost of the negotiation protocol itself
+Load balance index
+Fairness of distribution across departments
+Throughput
+Overall system capacity
+Fault recovery time
+Speed of graceful degradation after a node failure
+Scalability
+Behavior as the number of departments/nodes grows
+12. Technology Stack
+Component
+Tooling
+Reinforcement learning
+PyTorch, Stable-Baselines3 (single-agent baselines), Ray RLlib (multi-agent)
+Graph neural networks
+PyTorch Geometric (GraphSAGE, GAT/GATv2)
+Simulation
+SimPy for discrete-event simulation; custom hospital-graph environment
+Sequence models
+Transformer encoder + BiLSTM for physiological feature extraction
+Edge inference
+TensorRT / TFLite for on-device medical model inference
+Peer messaging
+MQTT or gRPC for neighbor-to-neighbor communication
+Network emulation
+Linux tc/netem for delay, packet loss, and bandwidth limits
+Hardware
+3–4 NVIDIA Jetson boards (Nano / Xavier / Orin Nano), one per department
+Visualization / tracking
+TensorBoard, Weights & Biases
+Evaluation
+CSV logging + Matplotlib for Phase 1; extend as needed
+13. Known Risks and Open Challenges
+Carried forward candidly from the initial design review, so they can be tracked rather than discovered late:
+Stale information — a neighbor may report as free but become busy immediately after being asked; decisions remain local, not globally consistent.
+Negotiation latency — for the tightest deadlines, the request/reply round trip may itself consume part of the time budget.
+Pile-up — several busy nodes may simultaneously target the same free neighbor; mitigated but not eliminated by the reservation mechanism.
+Structural unfairness — a department with fewer graph neighbors will tend to miss more deadlines purely due to topology, not load.
+No trust mechanism in Phase 1 — a misbehaving node could misreport its state; deferred to the Layer 11 extension.
+Scale is untested beyond a handful of nodes — behavior at larger hospital scale remains an open question for future work.
+14. Expected Outcomes and Publication Roadmap
+14.1 Expected Outcomes
+Reduced dependence on centralized infrastructure without sacrificing scheduling quality
+Lower communication overhead through embedding-based rather than full-state neighbor exchange
+Better congestion avoidance via graph-based perception of neighbor state
+Improved deadline satisfaction specifically for high-severity medical tasks
+Demonstrated robustness under node failure and degraded network conditions
+Validation on both simulation and a real Jetson-based edge testbed
+14.2 Recommended Staged Publication Plan
+Rather than one large manuscript, the work is best split across three papers, each with a self-contained contribution:
+GraphMARL: Fully Decentralized Peer-to-Peer Hospital Edge Orchestration — introduces the architecture, the GNN + MARL framework, the simulator, and the theoretical formulation.
+Robust and Trust-Aware Decentralized Hospital Edge AI — extends the framework with the trust module, adversarial robustness, and Byzantine-node handling.
+Real-Time Deployment of Decentralized GraphMARL on Jetson-Based Hospital Edge Networks — focuses on hardware validation, systems-level optimization, and deployment results.
+15. References
+1. Xue et al., "A Resource-Constrained and Privacy-Preserving Edge-Computing-Enabled Clinical Decision System: A Federated RL Approach," IEEE Internet of Things Journal, 2021.
+2. Yadav et al., "Smart Healthcare: RL-Based Task Offloading Scheme for Edge-Enabled Sensor Networks," IEEE Sensors Journal, 2021.
+3. Xue et al., "Low-Cost Data Offloading Strategy with Deep RL for Smart Healthcare System," IEEE Transactions on Services Computing, 2024.
+4. "Cooperative Digital Healthcare Task Scheduling and Resource Management in Edge Intelligence Systems," 2024.
+5. "Task Scheduling in Geo-Distributed Computing: A Survey" (includes FairHealth), arXiv:2501.15504, 2025.
+6. Wang et al., "Decentralized Task Offloading in Edge Computing: A Multi-User Multi-Armed Bandit Approach," IEEE INFOCOM, 2022.
+7. "An Offloading Method Using Decentralized P2P-Enabled Mobile Edge Servers in Edge Computing," 2019.
+8. "Deadline-Aware Dynamic Task Scheduling in Edge–Cloud Collaborative Computing," Electronics (MDPI), 2022.
+9. "Deadline-Aware Workload Scheduling for Edge-Enhanced IoT Devices: A Blockchain-Enabled Approach," 2025.
+10. "Task Offloading and Edge Computing in IoT — Gaps, Challenges and Future Directions," 2026.
+11. Taneja and Davy, "Resource Aware Placement of IoT Application Modules in Fog-Cloud Computing Paradigm," IFIP/IEEE IM, 2017.

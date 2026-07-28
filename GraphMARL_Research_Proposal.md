@@ -44,8 +44,32 @@ Where $U$ is utilization, $L$ is latency, $E$ is energy, $D$ is deadline misses,
 ### E. Adaptive Neighbor Negotiation Protocol (ANNP)
 A lightweight protocol for exchanging compact graph embeddings and predicted finish times instead of full resource tables, drastically reducing communication overhead.
 
-### F. Dynamic Failure Recovery Module (DFRM)
-Handles node failures (e.g., heartbeats drop), stale information, and network partitions. The graph dynamically updates, and nodes route around failures autonomously.
+### F. Self-Healing Network (SHN) [Enhanced DFRM]
+An upgrade to the Dynamic Failure Recovery Module (DFRM). Beyond merely detecting failures, the SHN automatically reorganizes neighbor connections, redistributes the workload, and continues execution without any administrator intervention. 
+* **Benefits:** Higher fault tolerance, faster recovery, and vastly improved robustness.
+
+### G. Adaptive Neighbor Communication (ANC)
+Replaces the old periodic information exchange. Nodes now communicate *only* when important events occur, such as: sudden queue increases, emergency patient arrivals, CPU/GPU overloads, network congestion, or neighbor failures.
+* **Benefits:** Lower communication overhead, lower bandwidth usage, and significantly better scalability.
+
+### H. Adaptive Multi-Objective Reward Function (AMRF)
+Instead of fixed reward weights, AMRF makes reward weights adaptive based on hospital conditions. 
+* **Emergency Mode:** Latency and deadline satisfaction → High priority; Energy → Low priority.
+* **Normal Mode:** Energy efficiency and resource utilization → High priority; Latency → Moderate priority.
+* **Benefits:** Context-aware scheduling, better emergency handling, and improved energy efficiency.
+
+### I. Explainable Decision Engine (EDE)
+Augments the scheduler to provide an explanation alongside every decision rather than just outputting the selected department. 
+* **Example Rationale:** `Task → ER | Reason: Queue Length = 2, CPU Utilization = 45%, Predicted Finish Time = 1.3 sec, Reliability Score = 0.97, HSI = High`.
+* **Benefits:** Explainable AI, higher clinician trust, easier debugging, and better regulatory compliance.
+
+### J. Predictive Congestion-Aware Scheduling (PCAS)
+Shifts the system from reactive to proactive scheduling. Instead of waiting for congestion to happen before making a decision, PCAS predicts future congestion before offloading and avoids routing tasks to predicted bottlenecks.
+* **Benefits:** Lower waiting time, fewer deadline misses, and proactive scheduling.
+
+### K. Fairness-Aware Task Scheduling (FATS)
+Upgrades fairness from a passing mention into a dedicated scheduling objective. FATS incorporates a fairness term directly into the reward function to prevent any single department from becoming overloaded and to balance the long-term workload among all departments.
+* **Benefits:** Balanced utilization, reduced starvation, and improved long-term stability.
 
 ---
 
@@ -64,8 +88,8 @@ graph TD
     end
     
     subgraph Decentralized Graph Intelligence
-    E --> F[Neighbor Discovery via ANNP]
-    F -->|Exchange Embeddings| G[Distributed Graph Construction]
+    E --> F[Neighbor Discovery via ANC & ANNP]
+    F -->|Event-Driven Embeddings| G[Distributed Graph Construction & SHN]
     G -->|Local State| H1[SCNN Feature Extractor]
     G -->|Neighbor States| H2[GNN Encoder GAT/GraphSAGE]
     H1 --> I{State Fusion}
@@ -73,18 +97,19 @@ graph TD
     end
     
     subgraph Multi-Agent Decision Engine
-    I -->|Fused State| J[Uncertainty-Aware MARL MAPPO]
-    J -->|Calculate Q-Variance| K{Local Offloading Decision Engine}
+    I -->|Fused State & PCAS Prediction| J[UA-MARL MAPPO with AMRF & FATS]
+    J -->|Calculate Q-Variance| K{Explainable Decision Engine EDE}
     end
     
-    K -->|Low Uncertainty| L[Local Execution Queue]
-    K -->|Offload Horizontal| M[Neighbor Edge Node]
-    K -->|High Uncertainty| N[Retry / Escalate]
+    K -->|Decision + Explanation| L[Local Execution Queue]
+    K -->|Decision + Explanation| M[Neighbor Edge Node]
+    K -->|Decision + Explanation| N[Retry / Escalate]
     
     style A fill:#e1f5fe,stroke:#01579b
     style J fill:#fff9c4,stroke:#fbc02d
     style H2 fill:#e8f5e9,stroke:#2e7d32
     style Z fill:#ffcdd2,stroke:#c62828
+    style K fill:#ffcc80,stroke:#e65100
 ```
 
 ### GraphMARL Decision Flow (Perception to Execution)
@@ -92,15 +117,17 @@ graph TD
 flowchart LR
     subgraph Perception Phase
     A1[Local State Features] --> SCNN[Stacked CNN]
-    A2[Neighbor Embeddings] --> GNN[Graph Neural Network]
+    A2[Neighbor Embeddings via ANC] --> GNN[Graph Neural Network]
     SCNN --> Fused[Fused State Representation]
     GNN --> Fused
     end
     
     subgraph Decision Phase
-    Fused --> MARL[UA-MARL Policy]
+    Fused --> PCAS[Predictive Congestion PCAS]
+    PCAS --> MARL[UA-MARL Policy with AMRF]
     T[Task Priority / HSI / HITL] --> MARL
-    MARL -->|Evaluate Q-Variance| D{Decision Action}
+    MARL -->|Evaluate Q-Variance & FATS| EDE[Explainable Decision Engine EDE]
+    EDE -->|Explainable Action| D{Decision Action}
     end
     
     subgraph Execution Phase
@@ -110,9 +137,16 @@ flowchart LR
     D -->|Delay| E4[Wait Queue]
     end
     
+    subgraph Self-Healing
+    SHN[Self-Healing Network SHN] -.->|Monitor & Reroute| E1
+    SHN -.-> E2
+    SHN -.-> E3
+    end
+    
     style GNN fill:#e8f5e9,stroke:#2e7d32
     style MARL fill:#fff9c4,stroke:#fbc02d
     style SCNN fill:#e8f5e9,stroke:#2e7d32
+    style EDE fill:#ffcc80,stroke:#e65100
 ```
 
 ---
@@ -121,16 +155,16 @@ flowchart LR
 
 1. **Fully Decentralized Architecture:** Propose the first fully decentralized peer-to-peer hospital edge orchestration framework without any central scheduler.
 2. **Horizontal Edge-to-Edge Collaboration:** Shift the paradigm from vertical (Device-to-Cloud) offloading to lateral Peer-to-Peer department collaboration.
-3. **Dynamic Graph Modeling:** Model the hospital infrastructure as a dynamic graph where departments are nodes and communication links are graph edges.
+3. **Dynamic Graph Modeling & Self-Healing:** Model the hospital infrastructure as a dynamic graph equipped with a Self-Healing Network (SHN) to auto-recover from node crashes.
 4. **Hybrid Perception Module (SCNN + GNN):** Introduce a dual-perception architecture combining SCNNs for high-dimensional local states and GNNs for neighborhood-aware resource representation.
 5. **GraphMARL Framework:** Develop a GraphMARL scheduling framework by integrating Graph Neural Networks with Multi-Agent Reinforcement Learning.
 6. **Uncertainty-Aware Decentralized Policy:** Implement an uncertainty estimation mechanism that calculates Q-value variance to prevent high-risk offloading in dynamic, partially observable network conditions.
 7. **Human-in-the-Loop (HITL) Override:** Design a closed-loop feedback mechanism allowing clinicians to inject real-time priority overrides that instantly propagate through the graph.
-8. **Lightweight Negotiation Protocol:** Design a lightweight neighbor-to-neighbor negotiation protocol (ANNP) using graph embeddings instead of complete resource exchange.
-9. **HSI-Integrated Scheduling:** Develop deadline-aware and Health Severity Index (HSI)-based intelligent task scheduling for critical healthcare applications.
-10. **Congestion-Aware Offloading:** Introduce adaptive congestion-aware task offloading using graph-based neighborhood intelligence.
-11. **Dynamic Failure Recovery:** Develop dynamic failure recovery mechanisms for node failures, stale information, and network partitioning.
-12. **Fairness-Aware Workloads:** Incorporate fairness-aware decentralized scheduling to balance workloads among hospital departments.
-13. **Low Communication Overhead:** Minimize communication overhead through localized graph aggregation and neighbor-only information exchange.
+8. **Event-Driven Adaptive Negotiation:** Design a lightweight neighbor-to-neighbor negotiation protocol using Adaptive Neighbor Communication (ANC) to drastically cut overhead.
+9. **Adaptive Multi-Objective Reward (AMRF):** Dynamically shift reward priorities between Emergency Mode (latency-focused) and Normal Mode (energy-focused).
+10. **Explainable AI in Scheduling (EDE):** Introduce an Explainable Decision Engine that outputs readable rationale for all offloading decisions, improving clinician trust.
+11. **Predictive Congestion Avoidance (PCAS):** Shift from reactive to proactive load balancing by predicting and bypassing future department bottlenecks.
+12. **Fairness-Aware Workloads (FATS):** Incorporate fairness-aware decentralized scheduling to balance long-term workloads among hospital departments, preventing starvation.
+13. **HSI-Integrated Scheduling:** Develop deadline-aware and Health Severity Index (HSI)-based intelligent task scheduling for critical healthcare applications.
 14. **Real Hardware Validation:** Validate the proposed framework on a real Jetson-based hospital edge testbed in addition to extensive simulations.
-15. **Comprehensive Superiority:** Demonstrate improved latency, deadline satisfaction, resource utilization, scalability, robustness, and fault tolerance over existing healthcare edge scheduling approaches.
+15. **Comprehensive Superiority:** Demonstrate improved latency, explainability, resource utilization, scalability, robustness, and fault tolerance over existing healthcare edge scheduling approaches.

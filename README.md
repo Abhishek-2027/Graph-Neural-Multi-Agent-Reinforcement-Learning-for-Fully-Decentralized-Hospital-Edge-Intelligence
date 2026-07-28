@@ -339,7 +339,7 @@ GraphMARL/
 ├── src/
 │   ├── data/
 │   │   └── workload_generator.py # Generates synthetic medical tasks
-│   ├── env/
+│   ├── environment/
 │   │   ├── hospital_graph.py     # Graph representation & SHN logic
 │   │   └── pettingzoo_env.py     # MARL environment interface
 │   ├── models/

@@ -63,11 +63,11 @@ cover/
 # Environments
 .env
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+/env/
+/venv/
+/ENV/
+/env.bak/
+/venv.bak/
 
 # Ray and Tensorboard logs
 ray_results/

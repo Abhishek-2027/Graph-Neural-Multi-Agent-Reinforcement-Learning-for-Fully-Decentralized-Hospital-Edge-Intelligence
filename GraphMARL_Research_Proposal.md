@@ -13,7 +13,7 @@ Our proposed framework, **GraphMARL**, completely eliminates the central schedul
 
 - **Fully Decentralized Peer-to-Peer Orchestration:** Nodes make decisions independently. If a node fails, the rest of the hospital continues to function, routing tasks horizontally to other departments.
 - **Dynamic Hospital Graph Representation:** The hospital is modeled as a dynamic graph $G = (V, E)$, where vertices are departments and edges are communication links. Node and edge features update continuously.
-- **Hybrid State Fusion (SCNN + GNN):** We utilize a Stacked CNN (SCNN) to compress the local department's high-dimensional state (compute, energy) and fuse it with a Graph Neural Network (GNN) that aggregates compact neighbor embeddings. 
+- **Hybrid State Fusion (SCNN + GATv2):** We utilize a Stacked CNN (SCNN) to compress the local department's high-dimensional state (compute, energy) and fuse it with a **Graph Attention Network v2 (GATv2)** that performs attention-based aggregation of neighbor embeddings, dynamically weighting each neighbor's contribution based on its relevance, data freshness, and link quality via learned edge features. 
 - **Uncertainty-Aware Decentralized Decision Making:** We integrate an Uncertainty-Aware Multi-Agent Proximal Policy Optimization (MAPPO) algorithm. The agent calculates the variance of its Q-value predictions for neighboring nodes. If neighbor data is stale or network congestion is high, the agent penalizes offloading to that neighbor, preventing catastrophic delays for critical medical tasks.
 - **Human-in-the-Loop (HITL) Override:** Unlike purely autonomous systems, clinicians can inject real-time priority overrides which dynamically propagate through the graph, forcing neighboring nodes to clear their queues for emergency tasks.
 - **Real Hardware Validation:** We will deploy the system on a testbed of NVIDIA Jetson boards (Nano, Xavier, Orin) simulating real hospital departments, injecting realistic network delays, packet loss, and node crashes.
@@ -28,8 +28,8 @@ Maintains the evolving graph of departments and communication links using local 
 ### B. Hybrid Perception Network (SCNN + NAGEN)
 Combines two perception layers:
 1. **SCNN:** Compresses high-dimensional local state parameters.
-2. **Neighbor-Aware Graph Embedding Network (NAGEN):** Utilizes GNNs (like GraphSAGE) to produce node embeddings from local neighborhoods. 
-The fused embedding (`[Local SCNN | Neighbor GNN]`) captures both local capacity and surrounding hospital congestion without global knowledge.
+2. **Neighbor-Aware Graph Embedding Network (NAGEN):** Utilizes **GATv2 (Graph Attention Network v2)** to produce attention-weighted node embeddings from local neighborhoods. Unlike MEAN-based aggregators, GATv2 learns dynamic, context-dependent attention weights over neighbors and incorporates edge features (bandwidth, latency, data staleness) directly into the aggregation, enabling uncertainty-aware neighbor encoding.
+The fused embedding (`[Local SCNN | Neighbor GATv2]`) captures both local capacity and surrounding hospital congestion without global knowledge, with per-neighbor importance explicitly learned.
 
 ### C. Health Severity Priority Encoder (HSPE) & HITL Override
 Extends the Health Severity Index (HSI). HSI is integrated directly into the MARL state space. Furthermore, the **HITL Override Protocol** allows clinicians to manually flag tasks as emergencies, instantly elevating the task's HSI and propagating "Emergency Override Embeddings" to neighbors.
@@ -91,7 +91,7 @@ graph TD
     E --> F[Neighbor Discovery via ANC & ANNP]
     F -->|Event-Driven Embeddings| G[Distributed Graph Construction & SHN]
     G -->|Local State| H1[SCNN Feature Extractor]
-    G -->|Neighbor States| H2[GNN Encoder GAT/GraphSAGE]
+    G -->|Neighbor States + Edge Features| H2[GATv2 Encoder with Edge Attention]
     H1 --> I{State Fusion}
     H2 --> I
     end
@@ -117,7 +117,7 @@ graph TD
 flowchart LR
     subgraph Perception Phase
     A1[Local State Features] --> SCNN[Stacked CNN]
-    A2[Neighbor Embeddings via ANC] --> GNN[Graph Neural Network]
+    A2[Neighbor Embeddings via ANC] --> GNN[GATv2 Attention Network]
     SCNN --> Fused[Fused State Representation]
     GNN --> Fused
     end
@@ -156,8 +156,8 @@ flowchart LR
 1. **Fully Decentralized Architecture:** Propose the first fully decentralized peer-to-peer hospital edge orchestration framework without any central scheduler.
 2. **Horizontal Edge-to-Edge Collaboration:** Shift the paradigm from vertical (Device-to-Cloud) offloading to lateral Peer-to-Peer department collaboration.
 3. **Dynamic Graph Modeling & Self-Healing:** Model the hospital infrastructure as a dynamic graph equipped with a Self-Healing Network (SHN) to auto-recover from node crashes.
-4. **Hybrid Perception Module (SCNN + GNN):** Introduce a dual-perception architecture combining SCNNs for high-dimensional local states and GNNs for neighborhood-aware resource representation.
-5. **GraphMARL Framework:** Develop a GraphMARL scheduling framework by integrating Graph Neural Networks with Multi-Agent Reinforcement Learning.
+4. **Hybrid Perception Module (SCNN + GATv2):** Introduce a dual-perception architecture combining SCNNs for high-dimensional local states and GATv2 (Graph Attention Network v2) for attention-weighted, edge-feature-aware neighborhood resource representation.
+5. **GraphMARL Framework:** Develop a GraphMARL scheduling framework by integrating GATv2 attention-based Graph Neural Networks with Multi-Agent Reinforcement Learning.
 6. **Uncertainty-Aware Decentralized Policy:** Implement an uncertainty estimation mechanism that calculates Q-value variance to prevent high-risk offloading in dynamic, partially observable network conditions.
 7. **Human-in-the-Loop (HITL) Override:** Design a closed-loop feedback mechanism allowing clinicians to inject real-time priority overrides that instantly propagate through the graph.
 8. **Event-Driven Adaptive Negotiation:** Design a lightweight neighbor-to-neighbor negotiation protocol using Adaptive Neighbor Communication (ANC) to drastically cut overhead.

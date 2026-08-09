@@ -1,0 +1,7 @@
+Ablation Configuration,Avg Latency (ms),Emergency Latency (ms),Overall Miss Rate (%),Emergency Miss Rate (%),Comm Overhead (MB)
+GraphMARL (Full Architecture),144.51,0.00,20.25%,0.00%,0.02
+w/o GATv2 Attention (MEAN Pooling),282.87,0.00,25.50%,0.00%,0.02
+w/o Uncertainty-Awareness (mu=0),177.06,0.00,24.25%,0.00%,0.02
+w/o Adaptive Comm (Periodic Flooding),553.74,0.00,57.00%,0.00%,0.78
+w/o Dynamic HSI Prioritization,64.96,0.00,7.12%,0.00%,0.02
+w/o FATS Neighborhood Fairness,164.64,0.00,12.12%,0.00%,0.02

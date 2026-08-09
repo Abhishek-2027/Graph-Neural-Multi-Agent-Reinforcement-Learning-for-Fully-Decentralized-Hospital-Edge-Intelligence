@@ -60,7 +60,7 @@ Sending massive volumes of physiological data to the Cloud introduces unacceptab
 A hospital inherently functions as a decentralized graph of departments (ICU, ER, Radiology). A decentralized system mirrors this topology, ensuring that if one node fails, the rest of the network autonomously reorganizes and continues functioning (Self-Healing Network).
 
 ### Why Graph Neural Networks?
-Standard Multi-Layer Perceptrons cannot handle variable, dynamically changing network topologies. Graph Neural Networks (specifically GraphSAGE) allow nodes to aggregate resource states from their immediate neighbors efficiently, compressing the hospital's dynamic status into a concise embedding without needing global state awareness.
+Standard Multi-Layer Perceptrons cannot handle variable, dynamically changing network topologies. Graph Attention Networks (specifically GATv2) allow nodes to compute attention-weighted aggregations over their immediate neighbors, learning which neighbors matter most for each decision while incorporating edge features (bandwidth, latency, data staleness) — compressing the hospital's dynamic status into a concise embedding without needing global state awareness.
 
 ### Why Multi-Agent Reinforcement Learning?
 Traditional heuristics fail under highly volatile, nonlinear congestion scenarios. MARL allows each department to act as an independent, intelligent agent that learns optimal offloading policies by interacting with the environment, balancing competing objectives like energy, latency, and clinical urgency.
@@ -105,7 +105,7 @@ Existing offloading architectures primarily focus on vertical Device-to-Cloud or
 ### Short-term Objectives
 1. Develop the discrete-event simulator for a dynamic hospital graph topology.
 2. Formulate the Health Severity Index (HSI) and integrate it with realistic task generation.
-3. Design and train the Hybrid Perception Network (SCNN + GraphSAGE).
+3. Design and train the Hybrid Perception Network (SCNN + GATv2).
 
 ### Long-term Objectives
 1. Implement the fully decentralized Uncertainty-Aware MAPPO scheduling policy.
@@ -144,7 +144,7 @@ graph TD
     E --> F[Adaptive Neighbor Communication ANC]
     F -->|Event-Driven Status| G[Distributed Graph Construction]
     G --> H1[SCNN Local State Extractor]
-    G --> H2[GraphSAGE Neighbor Encoder]
+    G --> H2[GATv2 Neighbor Encoder]
     H1 --> I{State Fusion}
     H2 --> I
     end
@@ -171,7 +171,7 @@ graph TD
 3. **Feature Extraction:** Transformer-BiLSTM extracts physiological anomalies.
 4. **HSI & Dynamic Prioritization:** Scores task criticality from 0.0 to 1.0.
 5. **SCNN:** Compresses high-dimensional local CPU/GPU/Queue states.
-6. **GraphSAGE:** Encodes the resource status of immediate neighbors.
+6. **GATv2:** Attention-weighted encoding of immediate neighbors with edge features.
 7. **Feature Fusion:** Concatenates local and graph embeddings.
 8. **Predictive Congestion:** Forecasts immediate future bottlenecks.
 9. **UA-MAPPO:** Makes the core execution action using deep RL.
@@ -194,10 +194,10 @@ graph TD
 - **Algorithm:** Weighted sum of vital sign anomalies + Clinical context.
 - **Advantages:** Prevents routine tasks from blocking life-critical emergency inference.
 
-### 3. Stacked CNN (SCNN) & GraphSAGE (State Fusion)
-- **Purpose:** To create a compact, fixed-size state vector regardless of how many neighbors a node has.
-- **Algorithm:** 1D-CNN over local time-series data; GraphSAGE neighbor aggregation.
-- **Mathematics:** $h_i^{(k+1)} = \sigma(W_1 h_i^{(k)} + W_2 \text{MEAN}_{j \in N(i)} h_j^{(k)})$
+### 3. Stacked CNN (SCNN) & GATv2 (State Fusion)
+- **Purpose:** To create a compact, fixed-size state vector regardless of how many neighbors a node has, with learned per-neighbor importance.
+- **Algorithm:** 1D-CNN over local time-series data; GATv2 attention-weighted neighbor aggregation with edge features.
+- **Mathematics:** $\alpha_{ij} = \text{a}^T \cdot \text{LeakyReLU}(W \cdot [h_i \| h_j \| e_{ij}])$, $h_i^{(k+1)} = \sigma(\sum_{j \in N(i)} \alpha_{ij} W h_j^{(k)})$
 
 ### 4. Uncertainty-Aware MAPPO (UA-MAPPO)
 - **Purpose:** Multi-Agent PPO that penalizes actions targeting nodes with stale information.
@@ -237,7 +237,7 @@ sequenceDiagram
     participant IoMT as IoT Device
     participant Agent as Edge Node (ER)
     participant ANC as ANC Protocol
-    participant GNN as GraphSAGE
+    participant GNN as GATv2
     participant RL as UA-MAPPO
     participant Peer as Neighbor Node (ICU)
     
@@ -246,7 +246,7 @@ sequenceDiagram
     Agent->>ANC: Fetch Neighbor Statuses
     ANC-->>Agent: ICU (Load: Low, Age: 2ms)
     Agent->>GNN: Embed Neighborhood State
-    GNN-->>RL: Fused State Vector
+    GNN-->>RL: Fused State Vector (Attention-Weighted)
     RL->>RL: Evaluate Q-Variance & FATS
     RL->>Agent: Decision -> Offload to ICU
     Agent->>Peer: Transmit Task via gRPC
@@ -261,7 +261,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[Initialize Hospital Simulator] --> B[Generate Synthetic Medical Workloads]
-    B --> C[Initialize GraphSAGE & MAPPO Networks]
+    B --> C[Initialize GATv2 & MAPPO Networks]
     C --> D[Agent Interactions]
     D --> E[Collect Trajectories]
     E --> F[Compute Advantage & AMRF Reward]
@@ -287,8 +287,10 @@ $x_i = [ \text{CPU}_{util}, \text{GPU}_{util}, \text{RAM}_{avail}, \text{QueueLe
 ### Health Severity Index (HSI)
 $HSI = \sum_{k=1}^{5} w_k \cdot \text{Score}_k(vital\_sign_k), \quad HSI \in [0, 1]$
 
-### GraphSAGE Aggregation
-$z_i = h_i^{(K)} = \sigma \left( W_1 h_i^{(K-1)} + W_2 \cdot \text{MEAN}(\{h_j^{(K-1)} \mid j \in N(i)\}) \right)$
+### GATv2 Attention-Based Aggregation
+$\alpha_{ij} = \frac{\exp(\text{LeakyReLU}(\mathbf{a}^T W [h_i \| h_j \| e_{ij}]))}{\sum_{k \in N(i)} \exp(\text{LeakyReLU}(\mathbf{a}^T W [h_i \| h_k \| e_{ik}]))}$
+
+$z_i = h_i^{(K)} = \sigma \left( \sum_{j \in N(i)} \alpha_{ij} W h_j^{(K-1)} \right), \quad e_{ij} = [\text{BW}_{ij}, \text{Lat}_{ij}, \text{Stale}_{ij}, \text{Rel}_{ij}]$
 
 ### Adaptive Multi-Objective Reward Function
 $R = \begin{cases} 
@@ -307,7 +309,7 @@ $L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta)\hat{A}_t, \text{c
 |-----------|------|--------------|---------------|
 | **Transformer-BiLSTM** | HTCF Feature Extractor | Captures long-term dependencies in vital time-series. | Computationally heavy. |
 | **Stacked CNN** | Local State Compression | Excellent at finding local patterns in resource vectors. | Requires fixed input dims. |
-| **GraphSAGE** | Neighborhood Embedding | Enables inductive learning on dynamic, changing graphs without needing full global graph access. | Sub-optimal if graph is fully disconnected. |
+| **GATv2** | Neighborhood Embedding | Attention-based aggregation learns dynamic per-neighbor importance; edge features encode link quality and data staleness; attention weights provide built-in explainability for EDE. | Slightly higher compute than MEAN aggregation (negligible for hospital-scale graphs). |
 | **UA-MAPPO** | Decentralized RL Policy | Stable training, robust to multi-agent non-stationarity, explicit uncertainty handling. | Sample inefficient compared to off-policy methods. |
 | **Auto-Regressive PCAS** | Congestion Prediction | Ultra-lightweight time-series forecasting. | Limited long-term horizon. |
 
@@ -317,7 +319,7 @@ $L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta)\hat{A}_t, \text{c
 
 **Backend Stack:**
 - **RL Framework:** Ray RLlib (for scalable distributed multi-agent training).
-- **Deep Learning:** PyTorch, PyTorch Geometric (for GraphSAGE).
+- **Deep Learning:** PyTorch, PyTorch Geometric (for GATv2).
 - **Edge Inference:** NVIDIA TensorRT & TensorFlow Lite.
 - **Communication:** gRPC and MQTT (for Adaptive Neighbor Communication).
 - **Environment:** Custom OpenAI Gym / PettingZoo environment wrapping SimPy.
@@ -344,7 +346,7 @@ GraphMARL/
 │   │   └── pettingzoo_env.py     # MARL environment interface
 │   ├── models/
 │   │   ├── scnn.py               # Local state encoder
-│   │   ├── graphsage.py          # GNN neighbor encoder
+│   │   ├── gatv2.py              # GATv2 attention-based neighbor encoder
 │   │   └── ua_mappo.py           # RL Actor-Critic models
 │   ├── agents/
 │   │   └── edge_node.py          # Decentralized node logic & EDE
@@ -372,7 +374,7 @@ gantt
     Simulator & DHGC             :active,  des2, 2026-08-08, 14d
     section Phase 2: Core ML
     HSI & SCNN                   :         des3, 2026-08-22, 14d
-    GraphSAGE Implementation     :         des4, 2026-09-05, 14d
+     GATv2 Implementation          :         des4, 2026-09-05, 14d
     section Phase 3: MARL & Advanced
     UA-MAPPO & AMRF              :         des5, 2026-09-19, 21d
     ANC, EDE, PCAS, SHN          :         des6, 2026-10-10, 14d
@@ -428,8 +430,8 @@ The physical validation layer uses a heterogeneous cluster of edge AI devices to
 
 1. **Simulation Phase:** Validate convergence of the MARL agents over 1M+ steps across varying network topologies.
 2. **Hardware Deployment:** Freeze actor networks to TensorRT and deploy via Docker to the Jetson cluster.
-3. **Ablation Studies:** 
-   - GraphMARL w/o GraphSAGE (Is graph intelligence needed?)
+3. **Ablation Studies:**
+   - GraphMARL w/o GATv2 (Is attention-based graph intelligence needed?)
    - GraphMARL w/o Uncertainty Awareness (Does it fail under network noise?)
    - GraphMARL w/o ANC (How much bandwidth is wasted?)
 4. **Sensitivity Analysis:** Perturbing the HSI weights and checking system response.
@@ -438,7 +440,7 @@ The physical validation layer uses a heterogeneous cluster of edge AI devices to
 
 ## 🏆 18. Novel Contributions
 
-1. **Fully Decentralized GraphMARL:** First application of fused GraphSAGE and MARL for pure peer-to-peer healthcare edge orchestration.
+1. **Fully Decentralized GraphMARL:** First application of fused GATv2 attention-based Graph Neural Networks and MARL for pure peer-to-peer healthcare edge orchestration.
 2. **Uncertainty-Awareness:** A novel mathematical formulation penalizing RL actions based on network state staleness.
 3. **Explainable AI in Scheduling (EDE):** Bridging the trust gap by converting black-box RL outputs into clinician-readable rationales.
 4. **Adaptive Neighbor Communication (ANC):** A bespoke protocol proving event-driven communication vastly outperforms periodic polling in hospital edge networks.
@@ -462,7 +464,7 @@ The physical validation layer uses a heterogeneous cluster of edge AI devices to
 
 1. [Placeholder] Author A, et al., "A Resource-Constrained Edge-Computing Clinical Decision System," *IEEE Internet of Things Journal*, 2021.
 2. [Placeholder] Author B, et al., "Task prioritization and distributed deep reinforcement learning for healthcare management in Cloud-Edge environments," *Elsevier*, 2024. (Primary Baseline)
-3. [Placeholder] Author C, et al., "GraphSAGE: Inductive Representation Learning on Large Graphs," *NeurIPS*, 2017.
+3. [Placeholder] Author C, et al., "How Attentive are Graph Attention Networks?," *ICLR*, 2022. (GATv2 — addresses static attention limitation of GATv1)
 4. [Placeholder] Author D, et al., "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games," *NeurIPS*, 2022.
 
 ---

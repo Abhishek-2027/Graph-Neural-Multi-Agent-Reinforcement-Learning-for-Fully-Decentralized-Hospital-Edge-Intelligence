@@ -1,0 +1,6 @@
+Method,Avg Latency (ms),Emergency Latency (ms),Deadline Miss Rate (%),Emergency Miss Rate (%),Total Energy (kJ),Comm Traffic (MB),ANC Bandwidth Saved
+GraphMARL (Proposed),68.52,0.00,6.75%,0.00%,0.844,0.00,68.4%
+Local-Only,62.27,0.00,6.75%,0.00%,0.844,0.00,0.0%
+Centralized Cloud Broker,197.40,0.00,26.12%,0.00%,0.893,5742.11,0.0%
+Vanilla Distributed RL,62.27,0.00,6.75%,0.00%,0.844,0.00,0.0%
+Greedy-Queue Handoff,62.27,0.00,6.75%,0.00%,0.844,0.00,0.0%

@@ -1,0 +1,2518 @@
+--- PAGE 1 ---
+Task prioritization and distributed deep reinforcement learning for 
+healthcare management in Cloud-Edge environments
+Kumaran K , Saranya G
+*
+, Siva priya M S , Vidhyalakshmi M
+School of Computer Science and Engineering, Vellore Institute of Technology, Chennai, India
+ARTICLE INFO
+Keywords:
+Cloud-edge environment
+Distributed stacked deep reinforcement 
+learning
+Healthcare management
+Reward function
+Stacked convolutional neural network
+Task offloading
+Task prioritization
+ABSTRACT
+Task offloading-based healthcare management in a Cloud-Edge environment emerges as a transformative 
+approach that dynamically distributes computational tasks between Internet of Things devices, edge servers, and 
+centralized cloud infrastructures. In this research, a Task-Prioritized Distributed Stacked Deep Reinforcement 
+Learning strategy is proposed for task offloading-based healthcare management in a Cloud-Edge Environment. 
+The physiological data are gathered continuously from the Internet of Things-enabled medical devices in the 
+device layer, which are transferred into the edge layer for the operations of preprocessing for enhancing the 
+quality of the data. The Hybrid Temporal – Contextual Fusion module is implemented by incorporating the 
+Transformer-based attention and Bidirectional Long Short-Term Memory networks to capture the temporal de -
+pendencies and contextual relationships in physiological signals. A Health Severity Index is analyzed for 
+assessing the risk levels of the patient and allows dynamic task prioritization for monitoring the healthcare tasks 
+based on the extracted features. An Uncertainty-Aware Priority-Driven Distributed Stacked Deep Reinforcement 
+Learning model at the cloud layer resolves the decisions of optimal task offloading between the device, edge, and 
+cloud resources. A Stacked Convolutional Neural Network is utilized for learning the system state ’ s compact 
+representation, and the Q-values are evaluated for offloading actions. An uncertainty-aware learning mechanism 
+and a multi-objective reward function are integrated for enhancing the reliability of the decision. The proposed 
+technique is compared to previous mechanisms, attaining a minimum Latency of 170 ms, and a higher resource 
+utilization rate of 84 % conforming that the proposed approach substantially enhances energy efficiency and 
+overall performance in task offloading-based healthcare management within Cloud-Edge environments.
+1. Introduction
+In the modern era, healthcare management has become increasingly 
+reliant on digital technologies to ensure the timely and effective delivery 
+of medical services [ 1 ]. With the exponential growth in the number of 
+connected medical devices, including Electronic Health Records (EHRs) 
+and real-time patient monitoring systems, the volume of healthcare data 
+being generated has surged dramatically [ 2 ]. This rapid digitalization 
+demands robust computational infrastructures capable of handling, 
+processing, and analyzing healthcare data efficiently. Traditional 
+cloud-based solutions often face latency and bandwidth issues, while 
+offering vast storage and computing capabilities, particularly when 
+real-time decision-making is required [ 3 ]. This has led to the emergence 
+of cloud-edge computing paradigms that aim to balance the load be -
+tween cloud and edge devices, which offers both the scalability of cloud 
+systems and the low-latency responsiveness of edge nodes.
+In this context, task offloading becomes a crucial function, where 
+healthcare tasks ranging from data collection and pre-processing to 
+advanced analytics and diagnostics are intelligently distributed between 
+edge and cloud environments [ 4 ]. Effective task offloading ensures 
+optimal use of computational resources, reduced response time, and 
+improved system efficiency. However, all the tasks in healthcare appli -
+cations do not have equal importance; some are time-critical and de -
+mand immediate attention, such as emergency response or real-time 
+vital sign monitoring, while others, like routine data backups or statis -
+tical analyses, tolerate delays [ 5 ]. Therefore, a task prioritization model 
+becomes essential to identify and process high-priority healthcare tasks, 
+which enhances the overall quality of service and patient care.
+Reinforcement Learning (RL) has emerged as a powerful tool for 
+optimizing healthcare management by enabling intelligent decision- 
+making through continuous interaction with dynamic environments 
+[ 6 ]. In healthcare systems, RL is employed to personalize treatment 
+* Corresponding author.
+E-mail addresses: kumaran.k@vit.ac.in (K. K), saranya.g@vit.ac.in (S. G), sivapriya.ms@vit.ac.in (S. M S), vidhyalakshmi.m@vit.ac.in (V. M). 
+Contents lists available at ScienceDirect
+Knowledge-Based Systems
+journal homepag e: www.else vier.com/loc ate/knos ys
+https://doi.org/10.1016/j.knosys.2026.116176
+Received 21 June 2025; Received in revised form 11 April 2026; Accepted 7 May 2026  
+Knowledge-Based Systems 346 (2026) 116176 
+Available online 8 May 2026 
+0950-7051/© 2026 Elsevier B.V. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+
+--- PAGE 2 ---
+plans, optimize hospital resource allocation, and improve patient 
+monitoring by learning optimal policies based on real-time data and 
+outcomes [ 7 ]. For instance, RL agents adaptively manage task offloading 
+in cloud-edge environments by learning from historical and contextual 
+information to minimize latency and maximize resource efficiency [ 8 ]. 
+Unlike traditional rule-based systems, RL offers the advantage of 
+self-improvement over time, which makes it particularly suitable for 
+complex, data-intensive healthcare scenarios where decisions must 
+adapt to changing patient conditions, network states, and system loads 
+[ 9 ]. This capability positions RL as a promising approach for creating 
+adaptive, responsive, and patient-centric healthcare solutions.
+Despite this research, existing offloading strategies often process 
+tasks homogeneously, neglecting the critical aspect of task prioritiza -
+tion. These methods lead to increased delays for time-sensitive appli -
+cations, inefficient resource utilization, and suboptimal patient 
+outcomes [ 10 ]. Moreover, many current techniques rely on static 
+decision-making processes that do not adapt well to the dynamic and 
+heterogeneous nature of healthcare environments. Previous RL-based 
+task offloading techniques face limitations such as slow convergence, 
+high computational overhead, and inadequate adaptability to dynamic 
+healthcare settings. These limitations necessitate a more robust and 
+adaptive strategy for task offloading-based healthcare management. To 
+address these limitations, the proposed work introduces an optimized 
+task-offloading approach tailored for healthcare management within a 
+cloud-edge ecosystem. This research proposes a novel Task-Prioritized 
+Distributed Stacked Deep Reinforcement Learning (DRL) (DSDRL) 
+(TP-DSDRL) approach for intelligent task offloading based on Health -
+care Management in Cloud-Edge Environment. The proposed framework 
+aims to enhance resource utilization efficiency and minimize energy 
+consumption, latency, and computational cost.
+1.1. Novelty
+The novelty of the proposed TP-DSDRL method in terms of task 
+offloading of healthcare information in the cloud-edge computing en -
+vironments is presented in this section. 
+• A TP-DSDRL framework is proposed for offloading the healthcare 
+task intelligently in cloud-edge computing environments. In this 
+method, the network conditions, availability of system resources, 
+and patient risk are combinely considered to produce the decisions of 
+offloading adaptively.
+• A Hybrid Temporal – Contextual Fusion (HTCF) method is imple -
+mented through the incorporation of Bidirectional Long Short-Term 
+Memory (BiLSTM) along with the Transformer-based attention 
+mechanism. With this integration, the contextual relationships and 
+temporal dependency in physiological signals are captured, resulting 
+in enhanced healthcare accuracy in analyzing severity.
+• A dynamic task prioritization mechanism is adopted for the health -
+care task classification according to the clinical urgency. The phys -
+iological indicators, including the status of patient condition, ECG 
+abnormalities, and heart rate (HR), are employed for the priority 
+score computation, allowing to classify the task into low, medium, 
+high, and emergency priority levels.
+• For enhancing the decision-making reliability, an Uncertainty-Aware 
+Priority-Driven DSDRL (UAP-DSDRL) is integrated to analyze the 
+predicted Q values confidence though variance based analysis. Based 
+on this mechanism, the increased risk of the actions of offloading is 
+prevented during lower prediction confidence.
+• A Stacked Convolutional Neural Network (SCNN) is incorporated 
+into the architecture of reinforcement learning for processing the 
+state information at high dimensional system, such as availability of 
+cloud resources, edge workload, network bandwidth, device energy 
+level, and task priority.
+1.2. Contribution
+These contributions to task offloading-based healthcare management 
+in Cloud Edge Platform are as follows: 
+• A TP-DSDRL framework is proposed for the intelligent task off -
+loading in a healthcare system in cloud-edge computing environ -
+ments. The network conditions, system resource availability, and 
+patient risks are combinely considered for producing the offloading 
+decisions adaptively.
+• An HTCF module is developed by incorporating the BiLSTM along 
+with the Transformer-based attention mechanism, in which the 
+contextual relationships and temporal dependencies are captured in 
+physiological signals, enhancing the accuracy of analyzing the 
+healthcare severity.
+• A dynamic task prioritization mechanism is implemented for 
+healthcare tasks classification based on clinical urgency. The physi -
+ological indicators, including patient condition status, ECG abnor -
+malities, and HR, are utilized for priority score computation, 
+allowing the classification of tasks into priority levels of emergency, 
+high, medium, and low.
+• A UAP-DSDRL method is integrated to enhance the decision-making 
+reliability and for assessing the predicted Q-values confidence 
+through the variance-based evaluation, thereby preventing high-risk 
+offloading actions when there is a reduced prediction confidence.
+• A SCNN is incorporated in the architecture of reinforcement learning 
+for effectively executing the high-dimensional system state infor -
+mation, such as device energy level, task priority, edge workload, 
+network bandwidth, and availability of cloud resources.
+This research paper is structured as follows: Section 2 presents a 
+comprehensive literature review, and Section 3 outlines the system 
+model and formulates the problem statement. Section 4 details the 
+proposed TP-DSDRL strategy, while Section 5 discusses the experimental 
+setup and analyzes the results. Section 6 concludes the dissertation and 
+outlines potential future research directions.
+2. Literature review
+Recent studies have explored a variety of task offloading approaches 
+for healthcare management within cloud-edge platforms. The related 
+work on these previous techniques is discussed below.
+2.1. Literature related to task offloading for healthcare management in 
+cloud-edge platform
+Bhasker et al., [ 11 ] presented an efficient augmented moth-flame 
+optimization (EA-MFO) approach for managing task offloading in the 
+Internet of Medical Things (IoMT) cloud, specifically designed for 
+healthcare applications. EA-MFO used a chaos-based logistic map for 
+initializing moth positions to ensure high population diversity and better 
+exploration of the search space. It optimizes the power consumption and 
+makespan with varying cloud resources. Jameil and Al-Raweshidy [ 12 ] 
+suggested a Digital Twin Healthcare enhanced asynchronous 
+team-based multi-agent proximal policy optimization (DTH-ATB- -
+MAPPO) for medical task offloading. The architecture is compatible 
+with various communication protocols and relies on partial and binary 
+offloading for smooth data transfer. MAPPO learns and adapts to the 
+environment dynamically to enhance the quality and resource utiliza -
+tion efficiency for decision-making.
+Mondal et al., [ 13 ] presented a dynamic energy-efficient offloading 
+strategy (DEEO) for task offloading in a mobile edge-cloud computing 
+system. In DEEO, a mobile device can offload heavy and secure image 
+transfer tasks to the nearest edge server/fog access point to reduce en -
+ergy consumption while ensuring the safety and integrity of health data. 
+A Dynamic Priority-Based Task Scheduling and Adaptive Resource 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+2 
+
+--- PAGE 3 ---
+Allocation (DPTARA) was designed by Anand and Karthikeyan [ 14 ] for 
+healthcare task on real time based on system load and urgency. The 
+healthcare task priorization was employed by this method to reduce the 
+latency and for resource allocation to the end devices. The resource 
+utilization was optimized, and the load balancing over the nodes of the 
+edges was attained to improve the performance of the system.
+An online Offloading based on the DRL was presented by Su et al., 
+[ 15 ], which incorporates a deep neural network and a weight-sensitive 
+experience replay mechanism for resolving the real-time task execution 
+of trade off of the latency and energy consumption of the system. The 
+DNN was utilized for reducing the decision of task offloading; mean -
+while, in the experience memory, the optimal solution was deposited 
+and weighted the samples based on the training effect. He et al., [ 16 ] 
+suggested a mobile edge computing (MEC)-enabled system for con -
+structing an intelligent multitasking processing system for data off -
+loading in smart healthcare. The task-aware service offloading 
+algorithm is developed through deep deterministic policy gradient 
+(DDPG), which provides adaptability in terms of various services via 
+end-edge-cloud synergy.
+Furthermore, Saranya et al., [ 17 ] suggested a DRL process together 
+with a Lion Optimization Algorithm (DRL LOA). This helped to enhance 
+the quality of decisions made in a cloud-edge environment. This 
+mechanism utilized a Graph Convolutional Network (GCN) for 
+combining this information into traffic attributes to create a node vector, 
+thus enhancing the efficiency of categorization for medical data in a 
+cloud edge setup. A Priority-Based Dynamic Load Balancing (PBDLB) 
+algorithm was designed by Shrawankar et al., [ 18 ] for leveraging the 
+criticality of the task for effective distribution over the nodes of the fog. 
+The categorization of tasks into high-priority and low-priority was 
+performed to ensure that the immediate processing was received 
+through the time-sensitive operations. The dynamic resource weighting 
+was integrated to reflect the workload in the real world situations.
+Choppara and Lokesh [ 19 ] suggested a DRL strategy in load 
+balancing and optimizing tasks in fog and cloud computing in critical 
+healthcare. This mechanism utilizes the prioritized tasks strategy 
+depending on heart rate and ECG parameters to help in the efficient 
+handling of critical tasks in healthcare. The platform streamlined fog 
+node resource utilization and eliminated the delay in critical healthcare 
+data. A hybrid computing model was demonstrated by Khan et al., [ 20 ] 
+in a healthcare system that utilized genetic algorithm optimization and 
+Graph Neural Networks to identify workloads and networks in Edge and 
+Cloud layers. This mechanism led to power savings and decreased 
+latency.
+Motlagh et al., [ 21 ] have demonstrated a detailed review of the 
+predictions of personality traits using AI. They have also mentioned the 
+requirements for explainable AI and the benefits of using a combination 
+of ML and DL in improving intelligent decision-making systems. Asif 
+et al., [ 22 ] have done an exhaustive survey on the applications of ML in 
+early disease detection in many medical disciplines like cancer, diabetes, 
+and COVID-19.
+A Traffic-aware lightweight Hierarchical Offloading framework to -
+wards Adaptive Slicing-enabled Space-Air-Ground Integrated Networks 
+(SAGIN) was developed by Chen et al., [ 23 ], in which the SAGIN is 
+separated into Communication Access Platforms (CAPs) and Computa -
+tion Offloading Platforms (COPs). A self-attention-based prediction 
+model was implemented accurately to allow adjustments in the slice 
+resource. An improved reinforcement learning method was developed 
+based on clipping of proximal along with dynamic confidence intervals 
+for optimal offloading. A personalized Federated deep Reinforcement 
+learning based computation Offloading and resource Allocation method 
+(PFR-OA) was developed by Chen et al., [ 24 ] in which personalized 
+demands are considered in smart communities during the proper policy 
+generation of resource allocation and computation offloading. A prox -
+imal term was implemented to enhance the optimal loss function of local 
+Q-values in reinforcement learning.
+A Multi-agent Collaborative method for Workflow Task offloading in 
+end-edge-cloud environments with the Actor-Critic algorithm named 
+MCWT-AC was presented by Xiao et al., [ 25 ], where every MD was 
+initially formed as an agent, and the decision of offloading was made 
+independently according to the local information. The workflow of 
+every MD of the task offloading decision model was acquired using the 
+Actor-Critic algorithm. An efficient workflow task offloading plant was 
+implemented at runtime using multi-agent collaboration. An Internet of 
+Healthcare Things (IoHT) framework was designed by Van Anh and 
+Nguyen [ 26 ], incorporating an M/M/C/K priority queue model (M: 
+Markovian arrival/service rates, C: servers, K: capacity) along with an 
+edge-fog-cloud system of a three-tier architecture. A dynamic priority 
+assignment method was designed for the rapid execution of critical 
+events using the real-time data of the patient; moreover, an adaptive 
+resource allocation method was exploited for performance optimization 
+over different workloads.
+2.2. Limitations and research gap
+The existing work perform important role in increasing computa -
+tional efficiency and decreasing latency due to task offloading in cloud- 
+edge computing, but it still contains some limitations. The majority of 
+existing methods deal with the tasks similarly, without focusing on the 
+task priority or application emergency, which causes complex condi -
+tions in healthcare where delay-sensitive needs instant processing. 
+Moreover, some of the task offloading methods depend on static system 
+parameters that include device energy, computational capacity, and 
+network bandwidth, but fail to adopt the temporal dynamics and 
+contextual relationships in the real-world data streams. Although DRL is 
+commonly accepted for adaptive offloading decisions, most of the con -
+ventional method has absence of mechanisms to calculate the uncer -
+tainty of predicted actions, which causes unpredictable decisions across 
+highly dynamic network environments. Another important limitation 
+lies in the insufficient representation of high-dimensional system states. 
+In many existing models, the ability to extract complex features asso -
+ciated with workload fluctuations, resource availability, and network 
+congestion remains limited. As a result, these approaches often fail to 
+fully capture the intricate relationships that influence offloading de -
+cisions. Therefore, a clear research gap exists in the development of 
+intelligent, distributed, and priority-aware task offloading frameworks 
+capable of effectively modeling temporal and contextual information. 
+Such frameworks should also incorporate uncertainty-aware decision 
+mechanisms while efficiently handling high-dimensional system states 
+to ensure reliable performance for latency-sensitive applications in 
+cloud-edge computing environments. To address these issues, this study 
+proposes a TP-DSDRL framework. The proposed approach integrates 
+priority-based decision making, temporal and contextual learning, and 
+uncertainty-aware reinforcement learning to enable efficient task 
+offloading.
+3. System model
+The proposed TP-DSDRL method’s system architecture and the 
+mathematical formulation, which are employed for task offloading 
+efficiently in cloud-edge healthcare environments, are presented in this 
+section. The main aim of this system is to allow the healthcare devices 
+based on IoT to generate the task offloading decisions optimally, which 
+minimizes latency, reduces consumption of energy, and the healthcare 
+monitoring is managed reliably. The determination of the most appro -
+priate location (cloud, edge, or device) for execution of the tasks of 
+healthcare is focused on the problem formulation during the system 
+constraints satisfaction relevant to cost, energy, and delay in processing.
+The architecture of healthcare monitoring is displayed in Fig. 1 . 
+Three hierarchical layers, including the Device layer, the Edge layer, and 
+the Cloud layer, are contained in this architecture.
+The heart-rate sensors, ECG monitors, wearable sensors, and the 
+various IoT-activated medical devices accountable for the physiological 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+3 
+
+--- PAGE 4 ---
+data collection from patients are contained in the device layer. The 
+healthcare parameters are monitored continuously through these de -
+vices, resulting in computational task production for processing. 
+External computing support is required because of reduced energy 
+constraints and computational resources.
+The edge servers are contained in the edge layer developed near 
+network gateways and healthcare facilities. The intermediate computing 
+abilities are provided to execute healthcare tasks that are sensitive to 
+latency, including emergency alerts or anomaly detection. The real-time 
+responsiveness is enhanced, and the communication delay is minimized 
+significantly in the system through the partial computation performance 
+at the edge.
+The computing resources that are performing extensively for long 
+term storage, large-scale processing of data, and complicated analytics 
+are offered in the cloud layer. From various edge nodes, the information 
+is aggregated through the cloud server, resulting in the global optimi -
+zation processing through the proposed TP-DSDRL method, assessing 
+the policy of optimal task offloading based on the conditions of the 
+system.
+Effective collaboration among the sensing devices and allocated 
+computing resources is allowed through the multi-layer architecture, 
+assisting continuous monitoring of patients, intelligent management of 
+healthcare, and emergency detection.
+3.1. Problem formulation
+The assessment of an optimal decision policy that reduces latency, 
+energy consumption, and cost of execution while assuring reliable pro -
+cessing of healthcare data is the main objective of the task offloading 
+problem.
+Let IH and ES represent the healthcare devices based on IoT and edge 
+servers in the system. A set of computational tasks is produced by every 
+device, which is locally executed or offloaded to a cloud or edge server.
+The representation of the task produced through the i device is 
+formulated as follows: 
+τ
+i
+= ( DS
+i
+, CC
+i
+) (1) 
+From the above equation, the input size of data of the task is signified 
+as DS
+i 
+and the essential Central Processing Unit (CPU) cycles for execu -
+tion are indicated as CC
+i
+. 
+Fig. 1. Architecture of healthcare monitoring.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+4 
+
+--- PAGE 5 ---
+• Energy Consumption Model
+When the tasks are locally processed or transformed to remote 
+computing nodes, the consumption of energy is consumed. The defini -
+tion for the consumption of energy for the processing of a local task at t 
+time is: 
+EC
+lo
+i
+= κ CC
+i
+f
+2
+i
+(2) 
+In the above equation, the CPU frequency for i the device is repre -
+sented by f , and the processor ’ s efficient switched capacitance coeffi -
+cient is denoted as κ .
+The energy essential for the computational task processing on the 
+resource-limited IoT devices is considered through this model.
+The Dynamic Voltage and Frequency Scaling (DVFS) is often utilized 
+by the processor in practical edge and IoT computing systems to adapt 
+the frequency of the CPU based on the conditions of the workload. The 
+dynamic variations of processor frequency and voltage in DVFS result in 
+the consumption of energy that is nearly proportional to the operating 
+frequency cube. The maximum usage of energy is led by the increased 
+frequency execution, and the consumption of power at greater execution 
+time cost is minimized while at reduced frequency. In the latest edge- 
+enabled healthcare systems, a more realistic energy consumption 
+expression is offered using DVFS. 
+• Latency Model
+The entire latency of processing a task consists of computation delay 
+and transmission delay. Three processing modes are utilized for the 
+execution of every task in the proposed TP-DSDRL model, and they are 
+local processing, edge offloading, or cloud offloading.
+The following expresses the entire latency execution for TS
+i 
+task: 
+LT
+i
+= LT
+lo
+i
++ LT
+eg
+i
++ LT
+cd
+i
+(3) 
+From the above equation, the local computation delay is signified 
+as LT
+lo
+i
+, the latency execution at edge layer is indicated as LT
+eg
+i
+, the delay 
+related with data transmission and cloud processing is represented 
+as LT
+cd
+i
+. The computing node ’ s resource and storage constraints need to 
+be satisfied during the execution of the task. 
+• Execution Cost Model
+The total cost of task execution is affected by the energy consumption 
+and latency. The cost of local execution for i the device is expressed as: 
+CS
+lo
+i
+= α LT
+lo
+i
++ β EC
+lo
+i
+(4) 
+In the above equation, the weighting factors illustrating the signifi -
+cance of energy consumption and latency are indicated by α and β .
+The definition of the entire cost of offloading is expressed in the 
+following; 
+CC
+i
+= α LT
+i
++ β EC
+i
+(5) 
+From Eq. (5) , the overall energy consumption and latency related to 
+the task execution are denoted as EC
+i 
+and LT
+i
+.
+A penalty term is implemented for the task failure representation 
+when the task is not executed because of inadequate communication 
+failure among the edge server and the IoT device or computational 
+resources.
+The most significant role is functioned by the penalty function in 
+enhancing the robustness of the system. It functions while the con -
+straints of task execution are violated because of network outages, edge 
+server failures, or inadequate computing resources. The penalty term 
+maximizes the cost of execution when these failures occur, which dis -
+courages the policy of offloading from unreliable computing node se -
+lection. This function permits the proposed TP-DSDRL method to 
+preserve healthcare service delivery reliably and prevent unstable 
+processing environments. 
+• Fitness Function
+The proposed task offloading function ’ s performance is assessed 
+through a fitness function that includes execution cost, latency, and 
+energy consumption into an individual objective measure. 
+FS = ω
+1
+EC + ω
+2
+LT + ω
+3
+CS (6) 
+From the above equation, the entire system execution cost, latency, 
+and energy consumption are signified as CC , LT and EC . The weighting 
+parameters are the wp
+1
+, wp
+2 
+and wp
+3 
+coefficients that manage the relative 
+significance of every factor.
+The reduction of fitness function during the timely task execution 
+and reliable healthcare monitoring maintenance is the main goal of the 
+risk-aware TP-DSDRL method.
+4. Proposed methodology
+A TP-DSDRL framework is proposed for intelligent offloading of 
+healthcare tasks in cloud edge computing environments. Three hierar -
+chical layer including the device layer, edge layer, and cloud layer is 
+contained in this method. The blood pressure, oxygen saturation, heart 
+rate, and the ECG signals are the physiological data that are gathered 
+continuously from the medical IoT-based devices in the device layer. To 
+the edge layer, the gathered data are passed for the execution of pre -
+processing operations such as noise removal, normalization, and missing 
+value handling to enhance the data quality. These preprocessed data are 
+considered through the HTCF module, which incorporates Transformer- 
+based attention and BiLSTM networks for capturing temporal de -
+pendency and contextual relationships in physiological signals. A 
+Healthy Severity Index (HSI) is assessed based on the features extracted 
+to analyze the risk level of the patient and allow the prioritization of 
+tasks dynamically for monitoring the task based on healthcare. A 
+comprehensive state representation is constructed by the system that 
+contains the resource availability, network conditions, device energy 
+level, and the severity information of healthcare. In the cloud layer, 
+optimal task offloading decisions between the cloud resources, edge, and 
+device are determined using the UAP-DSDRL model. A SCNN is utilized 
+for learning the system state ’ s compact representation, and the Q-values 
+are evaluated for offloading actions. An uncertainty-aware learning 
+mechanism and a multi-objective reward function are integrated to 
+enhance the reliability of decisions during the reduction of operational 
+cost, energy consumption, and latency. An adaptive offloading strategy 
+is learned by the proposed framework using continuous interaction 
+along with the cloud-edge environment, which assures timely execution 
+and effective utilization of resources for important healthcare tasks. 
+Fig. 2 illustrates the structure of the proposed TP-DSDRL method.
+4.1. Data acquisition
+At the device layer, the processing of data acquisition based on 
+healthcare is performed in the proposed TP-DSDRL method. This con -
+tains various medical IoT devices, and it is allowed to monitor the 
+physiological conditions of the patient continuously. These devices are 
+blood pressure monitors, pulse oximeters, heart rate sensors, ECG 
+monitors, wearable biosensors, and various smart health tracking sys -
+tems. Continuous physiological data streams, including body tempera -
+ture, blood pressure (BP), oxygen saturation (SpO2), heart rate (HR), 
+and CG signals, are necessary for monitoring real-time health and to 
+identify abnormal conditions early.
+For the edge layer, the gathered physiological signals are trans -
+formed using the wireless communication technologies, including 
+cellular networks, Bluetooth Low Energy (BLE), or WiFi. The data 
+acquisition process is developed for managing the streaming of data 
+continuously during the reliability maintenance and reducing 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+5 
+
+--- PAGE 6 ---
+communication latency, even the sensor data of healthcare is often time- 
+dependent and heterogeneous. Along with the physiological dimensions, 
+the contextual information, including environmental conditions, patient 
+activity level, and device status are also gathered to offer a more 
+extensive representation of the health state of the patient.
+4.2. Data preprocessing
+The incoming raw data based on healthcare encounter systematic 
+preprocessing in the edge layer to improve the quality of the signal, 
+develop reliable inputs for consequent task prioritization, temporal 
+feature learning, and assure data consistency. Continuously, several 
+preprocessing operations are executed based on the noise-prone and 
+heterogeneous characteristics of physiological signals based on IoT.
+Noise Removal: From monitoring devices and wearable devices, the 
+physiological signals are gathered, and they are mostly infected using 
+sensor instability, environmental interference, and motion artifacts. To 
+solve these problems, suitable filtering methods are utilized to eliminate 
+the baseline drift and noise at high frequency while maintaining the 
+substantial signal patterns clinically. The distorted representation of the 
+signal is prevented, which adversely affects the learning performance 
+and estimation of downstream severity.
+Signal Normalization: The features are scaled into a uniform range 
+in normalization since different numerical units and ranges are exhibi -
+ted using the acquired healthcare parameters. The numerical stability of 
+the model is assured, and the bias is prevented over attributes at high 
+magnitude while training the model. The BiLSTM-Transformer model ’ s 
+convergence behavior is enhanced through proper normalization, 
+resulting in an improvement in the entire efficiency of learning.
+Missing Value Handling: Missing samples are contained in the 
+healthcare time-series data because of device malfunction, intermittent 
+connectivity, or packet loss. Through statistical imputation or 
+interpolation methods, the missing values are handled to avoid infor -
+mation loss and to preserve temporal continuity, and the input se -
+quences ’ structural completeness is assured prior to temporal modeling.
+4.3. Temporal and contextual feature learning
+The preprocessed physiological series are passed to an HTCF module 
+to withdraw the severity-aware and discriminative representations of 
+the feature. The self-attention-based contextual modeling is integrated 
+along with the bidirectional temporal dependency learning to capture 
+the long-range sequential patterns and inter-parameter correlations 
+inherent in time series data on healthcare. The multi-head self-attention 
+mechanism is utilized to model the contextual dependency between the 
+physiological parameters, thereby allowing the clinically substantial 
+indicator ’ s adaptive weighting. Following, the attention refined features 
+are processed using the BiLSTM for backward and forward temporal 
+dependency learning, assuring the anomaly trends and dynamic health 
+fluctuation modeling. Robust embedding of health state is produced by 
+the HTCF module, which offers the basis for priority-driven task off -
+loading and accurate severity evaluation. Design of the HTCF method is 
+shown in Fig. 3 .
+The temporal transformer encoder phase is utilized by this HTCF, 
+resulting in preprocessed physiological sequences processing, which is 
+then transformed into a group of substantial feature vectors. This com -
+prises various encoder layers in which each includes two sub layers that 
+are multi-head self-attention and a feed-forward network that are fully 
+connected in vocationally. For every two sub-layers, the residual con -
+nections are employed by the transformer to improve the information 
+flow and alleviate the problem of vanishing gradient. These sub-layers 
+are integrated using the layer normalization, and the formulation of 
+the output of every sub-layer is LayerNorm ( a + sublyr ( a )) where the 
+operation executes, using the sub-layer itself is signified by sublyr ( a ) . An 
+Fig. 2. Structure of the proposed TP-DSDRL method.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+6 
+
+--- PAGE 7 ---
+output along with D
+mdl 
+dimensionality is produced by entire sub-layers, 
+such as embedding layers, to allow smooth incorporation of these re -
+sidual connections.
+The physiological segment sequences that are clinically appropriate 
+are focused on by the model in the attention mechanism. These functions 
+are performed through a set of key-value pairs and a query vector. The 
+contemporary contextual focus of the model in the health signal is 
+represented using the query; meanwhile, various physiological mea -
+surements ’ temporal segments, including oxygen saturation, QT inter -
+val, and heart rate, are expressed using the key-value pairs. The 
+important health indicators participating to the estimation of severity 
+are emphasized dynamically using the model.
+The scaled dot-product method, named self attention computation 
+method, is the main method employed for attention relationship 
+computation. The keys included into K matrix, and the queries included 
+in the Q matrix are the input, which consists of D
+k 
+dimension and the 
+values are loaded into V the matrix, which consists of D
+v 
+dimensions. The 
+following equation is utilized for the computation of the output matrix: 
+Attn ( Q , K , V ) = soft max
+(
+QK
+̅̅̅̅̅ ̅
+D
+k
+√
+)
+V (7) 
+The h linear projections are utilized by the multi-head attention 
+instead of using an individual attention function queries, values, and 
+keys D
+mdl 
+dimension. Through these projections, the queries, keys, and 
+values are transformed into dimensions of D
+q
+, D
+k
+, and D
+v 
+in which every 
+projection is independently learned. In every projection version, the 
+attention function is executed simultaneously, generating output values 
+at D
+v 
+the dimension. The information from varied subspace represen -
+tations and several positions is determined efficiently at once by the 
+model when initiating multi-head attention. 
+MH ( Q , K , V ) = Concat ( hd
+1
+, hd
+1
+, … , hd
+k
+) W P
+0
+where hd
+i
+= Attn
+ 
+QW P
+Q
+i
+, KW P
+K
+i
+, VW P
+V
+i
+) (8) 
+From the above equation, the learned projection matrices are signi -
+fied as WP
+Q
+i
+, WP
+K
+i 
+and WP
+V
+i
+. Varied contextual relationships among 
+various temporal positions and physiological parameters are captured 
+collectively by the model through the formulation of multi-head 
+attention.
+The extracted embedded features of healthcare time series after 
+preprocessing are received by the transformer encoder in the HTCF 
+module. The inter-parameter correlations and long-range dependencies 
+across the overall sequence are modeled by the encoder in self attention 
+mechanism. In monitoring healthcare, the ability of this function is 
+essential, in which the physiological abnormalities mostly show subtle 
+or delayed temporal interactions. A holistic dynamic health pattern 
+representation is gained using the model through attending to a similar 
+context over the entire sequence.
+A point-wise feed-forward network is utilized after the self-attention 
+operation for improving the capacity of representation and implement 
+non linearity. Two linear transformations are contained in the feed- 
+Fig. 3. Design of the HTCF method.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+7 
+
+--- PAGE 8 ---
+forward network, which are segregated through an activation function, 
+allowing complicated nonlinear interactions modeling between the 
+physiological variables. The contextual embeddings are refined through 
+these transformations and generates discriminative representation of 
+features appropriate for dynamic task prioritization and severity 
+assessment.
+In the HTCF module, the produced contextual features from the 
+transformer encoder are passed into the BiLSTM layer. The attention- 
+enhanced representations are refined using the BiLSTM network, 
+where the bidirectional temporal dependency is modeled, which is 
+available in physiological time series data. The backward and forward 
+sequences are processed through the BiLSTM, allowing extensive anal -
+ysis of health pattern evolution. In signals, the progressive trends and 
+historical dependency, including oxygen saturation, variability of heart 
+rate, and ECG, are captured through the forward LSTM, while the future 
+contextual relationships related to every time step are learned simulta -
+neously by the backward LSTM. The capability of the model is improved 
+through these dual-directional processing to recognize physiological 
+responses that are delayed and subtle temporal variations, which are 
+significant for accurate assessment of health severity.
+The computation of backward and forward hidden states for an a
+t 
+input sequence is formulated as follows: 
+hs
+t
+̅ →
+= LSTM
+fd
+(
+a
+t
+, hs
+t   1
+̅ ̅ →
+)
+(9) 
+hs
+t
+← ̅
+= LSTM
+bd
+(
+a
+t
+, hs
+t + 1
+← ̅ ̅
+)
+(10) 
+Both the hidden states are concatenated, and it is utilized for 
+obtaining the final bidirectional representation, which is formulated as: 
+hs
+Bid
+t
+=
+[
+hs
+t
+̅ →
+; hs
+t
+← ̅
+]
+(11) 
+The extensive past and future contextual information is captured by 
+the fused temporal representation, and the selective severity-aware 
+embeddings are generated. The final temporal contextual feature vec -
+tor is offered as the BiLSTM layer output, which is employed for the 
+dynamic task prioritization and health severity assessment in the pro -
+posed TP-DSDRL method.
+4.4. Health severity assessment
+A quantitative Health Severity Index (HIS) is measured after the 
+temporal-contextual representation extraction using the HTCF method 
+for assessing critical conditions in clinics for every monitoring task. In 
+this phase, the multimodal physiological measurements are transformed 
+into a combined severity score, which guides risk-aware offloading de -
+cisions and dynamic task prioritization in the proposed method.
+The clinically essential physiological indicators, such as systolic 
+blood pressure (SBP), oxygen saturation (SpO
+2
+), corrected QT interval 
+(QTc), and heart rate (HR), are integrated through the severity assess -
+ment. Based on their developed combination with hemodynamic ab -
+normalities, hypoxemia, and cardiac instability in real-time monitoring 
+of patient systems, these parameters are chosen.
+4.4.1. QT interval-based severity modeling
+The QT interval is chosen between the derived parameters as the 
+main severity indicator because of its robust clinical association with 
+ventricular arrhythmias and unexpected cardiac death. Ventricular 
+repolarization ’ electirical instability is reflected by QT prolongation, 
+which is mostly identified as a forecaster of malignant arrhythmic cir -
+cumstances. In wearable monitoring environments, the QT-based mea -
+surements are stable and low susceptible to the artifacts of transient 
+motion. The health severity index major component is adopted by the 
+corrected QT interval in the proposed method. 
+QT
+c
+=
+QT
+invl
+̅̅̅̅̅̅̅̅̅̅̅ ̅
+RR
+invl
+√ (12) 
+In the above equation, the measure QT interval is signified as QT
+invl 
+and the R-R interval is indicated as RR
+invl
+. The maximized electrical 
+instability is indicated by the prolonged QTc values, thereby allocating 
+increased severity contributions.
+4.4.2. Clinical threshold-based risk functions
+The developed clinical thresholds are employed for the assessment of 
+abnormalities in heart rate: 
+HeartRate > 120 bpm
+HeartRate < 60 bpm
+(13) 
+Maximum clinical risk is indicated by the minimized abnormal blood 
+pressure and minimized SpO
+2 
+( < 95 %). The conversion of every phys -
+iological parameter into a normalized risk function is performed, and it 
+is expressed as: 
+F
+i
+=
+a
+i
+  a
+nr
+i
+a
+mx
+i
+  a
+mn
+i
+(14) 
+From the above equation, the observed value is signified as a
+i 
+and the 
+normal reference value is signified as a
+nr
+i
+.
+4.4.3. Health severity index formulation
+The evaluation of the Health Severity Index is based on a weighted 
+sum of normalized risk components 
+HSI = ω
+1
+F
+HR
++ ω
+2
+F
+QTc
++ ω
+3
+F
+SpO
+2
++ ω
+4
+F
+BP
+(15) 
+In this equation, ω
+i 
+is denoted as a weighting coefficient satisfying: 
+ω
+1
++ ω
+2
++ ω
+3
++ ω
+4
+= 1 (16) 
+These weighting coefficients are adapted based on system feedback 
+for significant responsiveness to each parameter.
+4.4.4. Severity classification
+According to the computed HSI, the patient conditions are divided 
+into priority levels: 
+ρ =
+⎧
+⎨
+⎩
+High , HSI ≥ θ
+1
+Medium , θ
+2
+≤ HSI < θ
+1
+Low , HSI < θ
+2
+(17) 
+From this equation, ρ indicates priority, θ
+1
+and θ
+2 
+are denoted as 
+predefined thresholds.
+The division of severity provides efficient and risk-aware task pri -
+oritization in the proposed TP-DSDRL model.
+4.5. Dynamic task prioritization
+The highest numbers of physiological monitoring programs are 
+consistently produced from wearable sensors and medical devices in 
+IoT-provided healthcare monitoring systems. The physiological moni -
+toring programs are crucially varied in the field of clinical urgency, risk 
+level, and processing deadlines. Accessing all tasks with the same level 
+of priority can causes difficult in critical medical situations and time 
+delay for processing. Moreover, the proposed TP-DSDRL model in -
+tegrates a dynamic task prioritization mechanism for classifying 
+healthcare monitoring tasks according to clinical severity and urgency.
+A wearable or medical sensing device producing i
+th 
+a monitoring task 
+is indicated as τ
+i
+. All tasks are related to physiological indicators and 
+contextual parameters from the feature extraction. The estimation of the 
+priority score process uses prioritization, which identifies the urgency 
+level of the task and manages the offloading decisions in the proposed 
+TP-DSRL technique.
+The priority score can be formulated as: 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+8 
+
+--- PAGE 9 ---
+ρ
+i
+= α HSI
+i
++ β
+1
+d
+i
++ χ r
+i
+  λ u
+i
+(18) 
+In this equation, α , β , χ , λ are the weighting coefficients satisfy, 
+HSI
+i
+indicate the health Severity Index of the patient i , d
+i 
+denote the task, 
+r
+i 
+is the clinical risk score, and u
+i
+represents prediction uncertainty. 
+α + β + χ + λ (19) 
+This task enables higher clinical severity, higher risk, shorter dead -
+lines to receive higher priority, during tasks related to high uncertainty, 
+to minimize dangerous decision-making.
+The monitored patients ’ physiological conditions are shown by HSI, 
+which is evaluated from multiple clinical indicators derived during the 
+feature extraction. This work consists of four types of physiological 
+parameters, such as heart rate, corrected QT interval, oxygen saturation, 
+and blood pressure. 
+HSI
+i
+= ω
+1
+F
+HR , i
++ ω
+2
+F
+QTc , i
++ ω
+3
+F
+SpO
+2 , i
++ ω
+4
+F
+BP , i
+(20) 
+From this equation, HRI , i is denoted as normalized heart rate devi -
+ation, QTc , i is indicated as corrected interval abnormality, SpO
+2
+, i is the 
+oxygen saturation deviation, and BP , i is represented as blood pressure 
+abnormality.
+The weighting coefficients ω
+j
+can be computed as: 
+∑
+4
+j   1
+ω
+j
+= 1 (21) 
+The weighting factors can be modified in accordance with clinical 
+guidelines so that greater importance is given to parameters that have a 
+strong association with critical cardiac events. To maintain clinical 
+significance, the proposed TP-DSDRL model also integrates widely 
+accepted physiological reference limits acquired from standard medical 
+guidelines, such as the latest recommendations from European Resus -
+citation Council (ERC) [ 27 ] and American Heart Association (AHA) 
+[ 28 ]. Based on these guidelines, the typical resting heart rate for adults 
+lies between 60 and 100 beats per minute (bpm). A heart rate below 60 
+bpm is generally classified as bradycardia, whereas values exceeding 
+120 bpm may suggest severe tachycardia or increased cardiac strain. 
+Accordingly, when the heart rate satisfies the corresponding task, the 
+offering task offers higher severity in the HSI computation. 
+HR < 60 or HR > 120 (22) 
+In the same way, irregular ECG characteristics, including abnormal 
+rhythms or extended QT intervals, may signal possible cardiac disorders. 
+The QT prolongations that are clinically significant are specified 
+as QTc ≥ 450 ms in males and QTc ≥ 470 ms in females, as stated in the 
+latest cardiology literature [ 29 ]. As a result, the monitoring task related 
+to these conditions is assigned a higher severity level. By incorporating 
+clinically recognized threshold values, the prioritization strategy re -
+mains consistent with practical healthcare monitoring standards.
+Since real-time healthcare systems must react quickly to sudden 
+physiological variations, urgency also becomes an important factor. To 
+capture this aspect, the deadline parameter is modeled using an inverse 
+deadline sensitivity approach. 
+DL
+  1
+i
+=
+1
+τ
+deadline
+i
+  τ
+arrival
+i
+(23) 
+In this equation, τ
+arrival
+i
+is denoted as the task arrival time, 
+and τ
+deadline
+i
+indicates the maximum delay for processing.
+Even when the overall severity appears to be moderate, some phys -
+iological irregularities can still reflect a higher level of clinical risk. To 
+account for these situations, an additional risk score is introduced in the 
+model to represent such potentially critical situations. 
+R
+i
+=
+∑
+m
+k   1
+P
+k
+Φ
+k
+(24) 
+In this equation, Φ
+k 
+is the binary indicator that denotes the abnormal 
+clinical condition, P
+k
+denotes the significant weight related to the clinical 
+condition, and m indicates the total number of monitored risk factors.
+Typical indicators of elevated risk include the presence of 
+arrhythmia, an extended QT interval, or irregular oxygen saturation 
+levels. Predictions generated by machine learning models from physio -
+logical signals may sometimes involve uncertainty because of factors 
+such as sensor noise or missing data. To maintain dependable task pri -
+oritization, the proposed framework incorporates a penalty component 
+that accounts for uncertainty. In this approach, the level of uncertainty 
+for each task is measured using an entropy-based confidence estimation 
+method. 
+u
+i
+=  
+∑
+C
+c = 1
+ρ
+c
+log ( ρ
+c
+) (25) 
+From this equation, 
+ρ ( τ
+i
+) =
+⎧
+⎪
+⎪
+⎨
+⎪
+⎪
+⎩
+ρ
+1
+, ρ
+i
+≥ τ
+1
+ρ
+2
+, ρ
+2
+≤ ρ
+i
+< τ
+1
+ρ
+3
+, τ
+3
+≤ ρ
+i
+< τ
+2
+ρ
+4
+, ρ
+i
+< τ
+3
+(26) 
+Tasks identified with emergency priority (P1) are directly trans -
+mitted to the nearest edge server or cloud node to enable immediate 
+processing. In contrast, tasks with lower priority levels are scheduled 
+according to the availability of computational resources within the 
+system.
+4.6. State space construction
+In reinforcement learning – based task offloading frameworks, the 
+state space describes the current status of the network, available 
+computing resources, and the characteristics of healthcare-related tasks 
+as perceived by the learning agent. An appropriately structured state 
+representation allows the model to interpret environmental conditions 
+and determine efficient offloading strategies even when the system 
+operates under dynamic circumstances.
+Within the UAP-DSDRL model, the state space is formulated to 
+incorporate both infrastructure-level resource information and medical 
+task attributes. By combining these aspects, the agent can evaluate 
+clinical urgency while simultaneously considering computational limi -
+tations when selecting suitable offloading actions.
+At every decision time step, the overall system condition is repre -
+sented through a multidimensional state vector that captures the rele -
+vant features required for the decision-making process. 
+δ
+t
+=
+{
+ℜ
+E
+t
+, ℜ
+C
+t
+, HSI
+t
+, ρ
+t
+LT
+t
+, B
+t
+}
+(27) 
+ℜ
+E
+t 
+Implies the available computational resources in the edge server, 
+ℜ
+C
+t
+signifies the available resources in the cloud server, HSI
+t
+denotes the 
+Health Severity Index, ρ
+t
+indicates the task priority score, LT
+t 
+refers to 
+the network latency, and B
+t
+denotes the communication bandwidth.
+By incorporating both the HSI and the priority score, the framework 
+ensures that clinically critical healthcare tasks receive appropriate 
+attention during the decision-making process. Meanwhile, system- 
+related factors such as available computing resources, network la -
+tency, and bandwidth allow the agent to adjust its decisions according to 
+changing communication and computation conditions. Through this 
+combined representation, the model gains a holistic understanding of 
+the cloud – edge healthcare environment. Consequently, the UAP-DSDRL 
+agent can learn effective task offloading strategies that reduce process -
+ing delay while guaranteeing the timely execution of high-priority 
+medical tasks.
+4.7. Task offloading using UAP-DSDRL
+Once task priorities are determined and the system state space is 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+9 
+
+--- PAGE 10 ---
+defined, the proposed framework proceeds with intelligent task off -
+loading through the UAP-DSDRL model. The primary goal of this 
+component is to identify the most suitable execution location for each 
+healthcare task. By doing so, the framework aims to reduce processing 
+latency and energy usage while ensuring that medically critical tasks are 
+allocated immediate computational support. The architecture of the 
+DSDRL Technique for Healthcare task offloading is illustrated in Fig. 4 .
+The task offloading problem is designed as a Markov Decision Pro -
+cess (MDP), which is denoted as a tuple ( SS , AS , RW , π ) . In this, 
+SS indicates the state space, AS denotes the action space, RW represents 
+the reward function, and π signifies the decision policy. Every decision 
+step t, the agent determines the current system state SS
+t 
+and chooses an 
+action AS
+t 
+that evaluates the execution of the task.
+The action space can be expressed as: 
+AS
+t
+∈ { α
+1
+, α
+2
+, α
+3
+} (28) 
+In this equation, α
+1
+denotes the local execution at the device, α
+2 
+in -
+dicates task offloading at the edge server, and α
+3
+represents the task 
+offloading to the cloud server. Once an action is performed, the envi -
+ronment moves to the next state SS
+t + 1
+, and the agent receives a reward 
+that evaluates the quality of the chosen decision.
+The optimal action-value function is estimated using Q-learning that 
+formulated as: 
+Q ( SS
+t
+, AS
+t
+) = R
+t
++ β max
+A
+Q ( SS
+t + 1
+, AS ) (29) 
+From this equation, Q ( SS
+t
+, AS
+t
+) refers cumulative reward for taking 
+action AS
+t 
+in state SS
+t
+, R
+t
+represents the immediate reward, and β denotes 
+the discount factor.
+Since the system operates in a high-dimensional state environment, 
+directly estimating Q-values becomes challenging. To address this, the 
+proposed TP-DSDRL model utilizes an SCNN as a function predictor. 
+This network learns compact and meaningful representations of the 
+system state by identifying relationships among network conditions, 
+available resources, and healthcare task priorities.
+The SCNN model is composed of three convolutional layers followed 
+by pooling and fully connected layers. The first convolutional layer 
+contains 32 filters with a kernel size of 3 × 3and employs the ReLU 
+activation function to extract fundamental features from the input state. 
+After this, a max-pooling operation with a pooling size of 2 × 2 window 
+is used to decrease the feature dimensionality and enhance generaliza -
+tion capability. The second convolutional layer uses 64 filters with the 
+same kernel size 3 × 3to capture more complex feature interactions. 
+Finally, a third convolutional layer with 128 filters of size 3 × 3 is used 
+to learn deeper representations of the system state. Fig. 5 displays the 
+structure of an SCNN.
+To improve training stability and limit the risk of overfitting, a global 
+average pooling layer is applied to summarize the extracted feature 
+maps before they are forwarded to a fully connected layer with 256 
+neurons. The final output layer then generates Q-values for each possible 
+task offloading option, allowing the agent to choose the execution 
+strategy that yields the highest expected benefit.
+Fig. 4. Architecture of the DSDRL method for Healthcare task offloading.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+10 
+
+--- PAGE 11 ---
+To make the decision process more reliable, the framework in -
+tegrates an uncertainty-aware component within the policy network. 
+The uncertainty associated with the predicted Q-values is measured 
+through variance-based analysis, which helps the agent avoid poten -
+tially risky offloading choices when the prediction confidence is low. 
+Additionally, an adaptive ε -greedy exploration strategy is used during 
+training to maintain a balance between exploration and exploitation. In 
+this strategy, the agent selects the best-known action with probability1 
+  ε , while a random action is chosen with probability ε .
+By continuously interacting with the cloud – edge healthcare envi -
+ronment, the UAP-DSDRL agent gradually learns an adaptive task off -
+loading policy capable of responding to variations in network 
+conditions, available computational resources, and patient severity 
+levels. Consequently, the proposed method promotes efficient utiliza -
+tion of system resources while ensuring that high-priority healthcare 
+monitoring tasks are processed without delay.
+4.8. Multi-objective reward evaluation
+In the proposed TP-DSDRL model, the reinforcement learning agent 
+identifies optimal task loading decisions by maximizing a carefully 
+formulated multi-objective reward function. Healthcare task scheduling 
+typically involves several competing goals, including reducing latency, 
+minimizing energy usage, lowering operational expenses, and guaran -
+teeing priority-aware service for critical tasks. To address these objec -
+tives simultaneously, the reward formulation combines these factors 
+into a single optimization criterion.
+At every decision step d , the reward value RW
+d 
+measures the effec -
+tiveness of the chosen action by evaluating aspects such as task 
+completion performance, availability of computational resources, and 
+overall system workload distribution. The reward function is expressed 
+as follows: 
+RW
+d
+= α
+(
+η
+E
+d + 1
+η
+d
+)
++ β
+(
+η
+A
+d + 1
+η
+max
+)
++ χ
+(
+ν
+ave
+d
+ν
+max
+)
+(30) 
+In this equation, α , β , and χ indicate the weighting parameters 
+satisfying. 
+α + β + χ = 1 (31) 
+These weighting coefficients regulate how much influence each 
+objective factor has during the learning process.
+The component η
+E
+d + 1 
+refers to the number of emergency healthcare 
+tasks that are successfully completed at the following decision step ( d +
+1 ) . These tasks correspond to high-priority monitoring operations 
+identified through the Health Severity Index (HSI). A larger value of 
+η
+E
+d + 1
+represented that the system is effectively giving precedence to pa -
+tients with critical medical conditions.
+Similarly, the parameter η
+A
+d + 1 
+indicates the number of computing 
+nodes that remain free after tasks have been assigned at the step ( d + 1 ) . 
+This value represents the residual computational capacity within the 
+edge – cloud infrastructure. Preserving a higher level of node availability 
+helps to prevent system congestion and allows the platform to accom -
+modate additional incoming tasks efficiently.
+The variable ν
+ave
+d 
+represents the mean processing speed of the 
+computing nodes that are active during the decision step d , indicating the 
+system ’ s overall computational performance. It is calculated as the 
+average processing capability of all active nodes: 
+ν
+ave
+d
+=
+1
+K
+∑
+K
+k   1
+ν
+k
+(32) 
+In this equation, K denotes the total number of active computing 
+nodes and ν
+k
+corresponds to the processing speed of the k
+th 
+node.
+By integrating these elements, the reward formulation directs the TP- 
+DSDRL agent toward learning a policy that gives preference to urgent 
+healthcare tasks, maintains balanced use of available resources, and 
+enhances overall task processing efficiency. This multi-objective reward 
+structure supports effective and dependable task offloading within dy -
+namic cloud – edge healthcare management systems.
+4.9. Uncertainty-aware policy update
+The inaccurate task offloading decisions cause an increase in the 
+latency rate and incorrect permutation of computational resources due 
+to changes in the healthcare environment. The proposed TP-DSDRL 
+model integrates an uncertainty-aware policy update mechanism 
+among reinforcement learning process to help increase the decision 
+reliability. The integrated mechanism enables the agent to calculate the 
+forecasted action strength and reduce the high-risk offloading decision 
+while uncertainty is high.
+The uncertainty in action-value estimation is determined using the 
+variance of Q-values generated by the Stacked SCNN estimator. Let 
+Q
+k
+( S
+d
+, A
+d
+) represent the Q-value predicted by the k
+th
+estimation instance 
+for state S
+d 
+and action A
+d
+. The average Q-value is written as: 
+Q ( SS
+d
+, AS
+d
+) =
+1
+K
+∑
+K
+k   1
+Q
+k
+( SS
+d
+, AS
+d
+) (33) 
+From this equation, K signifies the total number of Q-value 
+estimators.
+Based on this average value, the uncertainty corresponding to a 
+specific action is determined using a variance-based formulation: 
+US
+d
+=
+1
+K
+∑
+K
+k = 1
+( Q
+k
+( S
+d
+, A
+d
+)   Q ( S
+d
+, A
+d
+))
+2
+(34) 
+Fig. 5. Structure of SCNN.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+11 
+
+--- PAGE 12 ---
+This equation represents that US
+d
+indicates the uncertainty score in 
+the decision step US
+d
+. A larger value of US
+d 
+denotes the lower confidence 
+in the predicted action.
+The integration of uncertainty into policy learning, the upgrade of 
+the Q-value can be formulated as: 
+Q
+n
+( SS
+d
+, AS
+d
+) = Q
+o
+( SS
+d
+, AS
+d
+)
++ χ
+[
+R
+d
++ μ max
+A
+ʹ
+Q ( SS
+d
++ 1 , A
+ʹ
+)   Q
+o
+( SS
+d
+, AS
+d
+)
+]
+( 1   U
+d
+)
+(35) 
+In this equation, χ indicates the learning rate, μ denotes the discount 
+factor, R
+d
+signifies the reward, and AS
+d
+implies the action.
+The factor ( 1   US
+d
+) decreases the influence of the update whenever 
+the uncertainty level is high, thus limiting unstable adjustments in the 
+policy. Through this mechanism, the reinforcement learning agent is 
+encouraged to favor actions with higher reliability, which helps main -
+tain safe and consistent task scheduling decisions within cloud – edge 
+healthcare environments.
+Furthermore, an adaptive ε -greedy exploration strategy is used to 
+maintain a balance between exploration and exploitation during 
+training. In this approach, the exploration probability gradually de -
+creases over time according to: 
+ε
+d
+= ε
+min
++ ( ε
+max
+  ε
+min
+) e
+  λ d
+(36) 
+From this equation, ε
+max
+, and ε
+min
+denote the maximum and minimum 
+exploration rates, respectively, and λ determines the decay speed.
+By combining uncertainty estimation with this adaptive exploration 
+mechanism, the TP-DSDRL model achieves more stable policy learning 
+and enhances the reliability of task offloading decisions even under 
+changing network conditions and fluctuating workloads.
+4.10. Closed-loop feedback mechanism
+To support dependable decision-making in dynamic healthcare en -
+vironments, the proposed TP-DSDRL framework incorporates a closed- 
+loop feedback mechanism that continuously refines the learning 
+model using real-time system observations and stakeholder input. In 
+real-world healthcare settings, clinicians, monitoring personnel, and 
+system administrators may modify task priorities depending on patient 
+status, emergency notifications, or network congestion levels. Incorpo -
+rating such real-time feedback allows the reinforcement learning model 
+to adjust its policy in response to changing operational demands.
+Within the Deep Q-Network (DQN) learning framework, the model 
+parameters are optimized by minimizing a loss function that captures 
+the difference between the predicted Q-value and the corresponding 
+target value. At decision step x, the loss is defined as: 
+LS ( θ
+d
+) = ( Q ( S
+d
+, A
+d
+; θ
+d
+)   b
+d
+)
+2
+(37) 
+In this equation, Q ( S
+d
+, A
+d
+; θ
+d
+) indicate the predicted Q-value pro -
+duced by the SCNN-based policy network with parameters x, while x 
+represents the target Q-value used to guide the training process.
+The target Q-value is determined according to the Bellman update 
+formulation: 
+b
+d
+= RW
+d
++ μ max
+A
+ʹ ʹ
+Q
+ 
+SS
+d
++ 1 , A
+ʹ
+; θ
+ 
+d
+)
+(38) 
+From this equation, RW
+d 
+is the reward function received after acting, 
+μ indicates the discount factor, and Q
+ 
+SS
+d
++ 1 , A
+ʹ
+; θ
+ 
+d
+)
+indicates the Q- 
+value predicted by the target network for the next state SS
+d 
++ 1.
+The proposed closed-loop feedback mechanism incorporates real- 
+time input from stakeholders by dynamically modifying the reward 
+signal and task priority parameters based on updated system observa -
+tions. For example, clinicians may flag certain patient conditions that 
+demand urgent processing, whereas system administrators may report 
+issues such as network congestion or limited resource availability. These 
+inputs are integrated into the learning process by adjusting the reward 
+value RW
+d 
+and the priority weights assigned to healthcare tasks.
+In addition, important system indicators — including latency, node 
+utilization, and task completion rates — are continuously monitored and 
+incorporated into the state representation. This feedback information 
+enables the reinforcement learning agent to progressively refine its 
+policy during training by adjusting to changing operational conditions 
+within the system.
+During this closed-loop learning process, the proposed TP-DSDRL 
+model increases the decision policy, enabling a task offloading method 
+still responsive to the patients ’ requirements, availability of system re -
+sources, and limitation of operations, all of which are improved 
+consistently. Overall, the proposed TP-DSDRL attained adaptive, reli -
+able, and scheduling medical aware task in cloud-edge healthcare 
+environments.
+5. Experimental evaluation results
+This section describes the experimental validation results, including 
+the simulation setup, parameter settings, and evaluation indicators. 
+Then the analysis of the results evaluates the effectiveness of the TP- 
+DSDRL approach.
+5.1. Experimental setup
+System Configuration: This research utilizes a robust hardware 
+configuration including an Intel ® Core ™ i7 – 6700HQ CPU, 16GB of 
+Random Access Memory (RAM), and an NVIDIA GeForce GTX 960 M 
+Graphics Processing Unit (GPU), all operating on Ubuntu 16.04.6 LTS 
+(64-bit). This research uses CloudSim software, which is designed for 
+modeling and simulating cloud infrastructures.
+5.2. Dataset description
+• Healthcare dataset
+The Healthcare dataset ( https://www.kaggle.com/datasets/pr 
+asad22/healthcare-dataset ) contains 10,000 patient records, whereas 
+these records indicate synthetic patient healthcare records individually. 
+This record is categorized into different types includes patient de -
+mographics, medical conditions, and admission details. This dataset it is 
+designed for use in the field of education and commercial use. It carries 
+artificial data only, and does not carry real patient data. 
+• Healthcare_IOT_Data
+The Healthcare IoT dataset provides a comprehensive collection of 
+data collected from various IoT devices used in healthcare settings. This 
+dataset typically includes information on patient vitals, device statuses, 
+and other health metrics, which are aimed at enabling research and 
+development in health monitoring, predictive analytics, and personal -
+ized treatment options. Generally, it encompasses features such as 
+timestamps, device IDs, sensor readings (like heart rate, temperature, 
+blood pressure), and patient demographics. Such datasets are essential 
+for developing algorithms to enhance patient care, predictive models for 
+disease progression, and improving overall health outcomes through 
+data-driven decision-making in clinical environments. This dataset is 
+available at https://www.kaggle.com/datasets/ziya07/healthcare 
+-iot-data .
+5.3. Hyperparameter configuration
+Table 1 shows the hyperparameter configuration for the proposed 
+TP-DSDRL model. To achieve reliable training and better performance of 
+the proposed TP-DSDRL framework, the hyperparameters were deter -
+mined through detailed experiments and ablation analysis. A grid search 
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+12 
+
+--- PAGE 13 ---
+approach was adopted to identify suitable values for important param -
+eters such as the learning rate and dropout rate. During tuning, the 
+learning rate was evaluated with different values (0.0001, 0.0003, 
+0.0005, and 0.001). Among these, 0.0003 provided a balanced outcome 
+by ensuring stable training while maintaining a reasonable convergence 
+speed. When higher learning rates were used, the reward values fluc -
+tuated significantly, whereas smaller values resulted in slower conver -
+gence of the model. In the same way, different dropout configurations 
+(0.0, 0.3, and 0.5) were tested to control overfitting. A dropout rate of 
+0.3 produced the most effective results, as it helped reduce overfitting 
+while still preserving the model ’ s ability to generalize. The remaining 
+hyperparameters, such as the discount factor, batch size, replay buffer 
+capacity, and the update interval of the target network, were selected 
+based on commonly adopted DRL practices and further verified through 
+preliminary trials. With these final settings, the framework achieved 
+stable convergence along with improved task offloading efficiency, 
+lower latency, and better energy utilization.
+5.4. Evaluation indicators
+The evaluation indicators employed for analyzing the TP-DSDRL 
+method performance are presented in this section. The indicators 
+comprise Latency, execution time, energy consumption, processing 
+time, throughput, average resource utilization, average task offloading 
+delay, and energy efficiency.
+Latency
+ 
+L
+cy
+)
+: Latency refers to the time delay between request 
+initiation and the corresponding response or action. In task offloading, it 
+includes the time taken to transfer data to the cloud, process it, and 
+return the results to the edge device. The Latency is computed using the 
+following equation. 
+LT =
+1
+N
+∑
+N
+i = 1
+(
+τ
+fin
+i
+  τ
+str
+i
+)
+(39) 
+From the above equation, the average latency is signified as LT , the 
+total number of tasks is indicated as N , the task generation time is 
+denoted by τ
+str
+i
+, and the task completion time is represented by τ
+fin
+i
+.
+Execution time ( ET ) : This refers to the total time taken to complete a 
+task once it has been offloaded to the cloud or edge server. 
+ET =
+C
+i
+f
+j
+(40) 
+where C
+i
+stands for the computational workload of the i
+th
+task, 
+and f
+j
+represents the processing speed of the j
+th
+node.
+Energy consumption ( E
+c
+) : It calculates the sum of energy consumed 
+by the IoT devices for task of computation and transmission. 
+EC =
+1
+N
+ 
+EC
+cmp
+i
++ EC
+trs
+i
+)
+(41) 
+In the above equation, the total energy consumption is signified 
+by EC , the energy employed for computation is denoted as EC
+cmp
+i
+, the 
+energy utilized for the transmission task is represented as EC
+trs
+i
+, and 
+moreover, the efficiency of the device battery is enhanced by the 
+reduced energy consumption.
+System Throughput: The number of healthcare tasks that are 
+executed in a specific interval of time is measured using the system 
+throughput. The formulation for the throughput is as follows: 
+ThP =
+N
+procd
+T
+p
+(42) 
+From Eq. (42) , the system throughput is indicated as ThP , the number 
+of processed tasks is signified as N
+procd
+, and the entire processing time is 
+denoted as T
+p
+.
+Processing time ( PT ) : Processing time is the duration required to 
+process a healthcare task exclusively on a node, without considering 
+communication delays. 
+PT =
+D
+i
+R
+j
+(43) 
+where D
+i
+stands for the data size of the i
+th
+task, and R
+j
+represents the data 
+processing rate of the j
+th
+node.
+Average resource utilization
+ 
+R
+avrg
+)
+: This metric reflects how 
+effectively the cloud and edge resources are being used during task 
+execution. It takes into account CPU, memory, and bandwidth usage. 
+High resource utilization signifies efficient use of available resources. 
+R
+avrg
+=
+1
+N
+∑
+N
+j = 1
+R
+used
+j
+R
+total
+j
+× 100 (44) 
+where R
+used
+j
+indicates resource used by node j , N stands for total number 
+of nodes, and R
+total
+j
+represents the total resources of the node j .
+Average task offloading delay
+ 
+T
+offload
+)
+: This refers to the delay 
+experienced when a task is offloaded from a local device to the cloud or 
+edge server before execution. Factors influencing this delay include 
+network latency and the time taken for data transfer. 
+T
+offload
+=
+S
+i
+B
+j
++ T
+queue
+(45) 
+where S
+i
+represents the size of the offloaded task, bandwidth of the 
+communication link is denoted by B
+j
+, and T
+queue
+stands for average 
+queuing delay at the offloading node.
+Energy efficiency ( EF ) : Energy Efficiency indicates the ratio of 
+successful task completions to the total energy consumed. Higher values 
+imply better system performance. 
+Table 1 
+Hyperparameter configuration of TP-DSDRL method.
+Hyperparameter Optimal Value
+Number of IoT Devices 150
+Edge Servers 5
+Cloud Servers 1
+Training Episodes 2000
+Time Step 1 s
+Learning Rate 0.0003
+Discount Factor ( γ ) 0.99
+Batch Size 64
+Replay Buffer Size 100,000
+Target Network Update Frequency 300 steps
+Optimizer Adam
+Initial Exploration ( ε ) 1.0
+Final Exploration ( ε ) 0.01
+ε Decay Rate 0.995
+Q-Variance Threshold 0.03
+Confidence Window Size 15
+Uncertainty Penalty Coefficient 0.2
+Convolution Layers 3
+Filters per Layer 64
+Kernel Size 3 × 3
+Activation Function ReLU
+Dropout Rate 0.3
+BiLSTM Hidden Units 128
+BiLSTM Layers 2
+Transformer Heads 4
+Transformer Layers 1
+Attention Dropout 0.2
+Latency Weight (w1) 0.4
+Energy Weight (w2) 0.3
+Cost Weight (w3) 0.2
+Reliability Weight (w4) 0.1
+Emergency Threshold (HSI) ≥ 0.80
+High Priority Range 0.60 – 0.79
+Medium Priority Range 0.40 – 0.59
+Low Priority Range < 0.40
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+13 
+
+--- PAGE 14 ---
+EF =
+N
+completed
+E
+total
+(46) 
+where N
+completed
+stands for the number of completed healthcare tasks, and 
+E
+total
+represents the total energy consumption during the period.
+5.5. Performance analysis of the TP-DSDRL method
+The performance analysis of the proposed TP-DSDRL method in 
+terms of several metrics using the two different datasets for intelligent 
+task offloading in the management of healthcare in cloud edge envi -
+ronments is presented in this section.
+System Performance under increasing IoT devices against Latency, 
+Energy Consumption, and Task Success Rate is shown in Fig. 6 . The 
+increase in the number of IoT devices from 50 to 150 progressively 
+maximizes the average latency because of greater processing loads and 
+data transmission in the cloud-edge environments, but in the proposed 
+method, the latency is relatively low, describing the efficiency in 
+handling the developing healthcare workloads. The usage of energy 
+increases from 11.2 J to 24.6 J when there is a rise in IoT devices, based 
+on the increased communication and computational demands. The task 
+success rate is achieved above 95 % when analyzing the number of task 
+thereby signifying strong reliability of the system.
+Fig. 7 illustrates the Task Success Rate analysis of the proposed TP- 
+DSDRL over Network Bandwidth. An improved task success rate is 
+achieved, ranging from 94 % to 98.5 %, when the network bandwidth 
+ranges from 5 Mbps to 25 Mbps, signifying that an increase in bandwidth 
+allows faster transmission of data and minimizes the congestion of the 
+network while offloading the healthcare task.
+The Task priority level analysis of the proposed TP-DSDRL over 
+Response time is displayed in Fig. 8 . A minimum response time of 70 ms 
+is attained by the emergency task, assuring faster execution of the crit -
+ical data of the patient. The response time is regularly maximized where 
+the priority level is reduced from high to low, signifying urgent tasks are 
+prioritized efficiently for faster processing.
+Fig. 9 shows the Task utilization estimation of the proposed TP- 
+DSDRL against the number of tasks. The utilization of resources rises 
+to 84 % when the number of tasks is 500, signifying effective computing 
+resource allocation in the cloud edge environment. The enhancement is 
+based on the efficient distribution of workload and adaptive task 
+offloading.
+The Impact of the uncertainty-aware module of the proposed TP- 
+DSDRL is illustrated in Fig. 10 . The rise of system load from 20 % to 
+100 % maximized the offloading decision error rate. Lower error rates 
+are attained consistently using the uncertainty-aware module of the 
+proposed UAP-DSDRL method when compared to handling the model in 
+the absence of uncertainty. This describes that the accuracy and reli -
+ability of the task offloading decisions are enhanced over the dynamic 
+condition of the system while integrating the uncertainty awareness.
+The Learning Performance of TP-DSDRL in terms of Average Reward 
+against Training Episodes and Training Loss against Training Episodes is 
+displayed in Fig. 11 . The rise in the number of training episodes from 
+200 to 2000 steadily maximizes the average reward, signifying that the 
+proposed method learns the offloading strategy progressively using the 
+continuous correlations with the environments. The reward improve -
+ment describes better resource utilization and decision making, result -
+ing in stable convergence learning over time. In training loss, it 
+minimizes regularly due to the raise of episodes. From 0.81 to 0.24, the 
+loss range reduces, representing an enhanced accuracy of the model in 
+reducing the prediction error efficiently.
+The Healthcare Priority-Based Performance of the proposed TP- 
+DSDRL method based on (a) Response Time and Task Priority and (b) 
+Fig. 6. System Performance under increasing IoT devices against Latency, Energy Consumption, and Task Success Rate.
+Fig. 7. Task Success Rate analysis of the proposed TP-DSDRL over 
+Network Bandwidth.
+Fig. 8. Task priority level analysis of the proposed TP-DSDRL over 
+Response time.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+14 
+
+--- PAGE 15 ---
+Task offloading Distribution and Task Priority is shown in Fig. 12 . Based 
+on the healthcare priority level task, the response time changes, and the 
+emergency tasks attains minimum of 68 s response time, ensuring faster 
+handling of the patient's data. Meanwhile, the tasks from high to low 
+generates gradual increase in the response time. These results ensure 
+that the emergency healthcare tasks are prioritized efficiently by the 
+proposed method for quick processing. In this, the task offloading dis -
+tribution also varies, and at the edge layer, the high-priority and 
+emergency tasks are processed for assuring quick response time. The 
+cloud and device resources handle the low and medium priority tasks 
+regularly for balancing the load of computation during the maintenance 
+of timely healthcare task processing.
+The task offloading scalability system for the proposed TP-DSDRL 
+method, in comparison of the number of tasks with (a) Throughput 
+and (b) Edge Resource Utilization, is displayed in Fig. 13 . When the 
+number of task increase from 100 to 600, the throughput maximizes, 
+signifying that more tasks per second are executed along with a greater 
+workload. The proposed method ’ s capabilities are described in which 
+the greater volumes of tasks are handled efficiently. The rise of number 
+of task increase the utilization of edge resources between the range of 
+100 to 600. From 64 % to 88 %, the utilization has increased, reflecting 
+the effective available edge resources utilization, which happens based 
+on the efficient balancing of workload and adaptive task offloading.
+Task Processing Histogram of the proposed TP-DSDRL method in 
+terms of latency and Energy Consumption is displayed in Fig. 14 . In the 
+110 – 170 ms latency range, most of the healthcare tasks are accom -
+plished, signifying faster processing and effective scheduling of tasks in 
+the cloud edge environment. Beyond 200 ms, fewer tasks undergo 
+greater latency when there is an increase in the system load. Entirely, the 
+proposed method sustains low and stable processing delay, which is 
+necessary for monitoring the real-time healthcare application. Mean -
+while, within the energy range of 11 – 17 J, most of the tasks utilizes 
+indicating that the IoT device ’ s computational burden is reduced effi -
+ciently using the proposed offloading method. Higher energy is 
+consumed by the minimum tasks during the requirement of additional 
+computation or communication, signifying that the processing of energy 
+efficient task are maintained successfully for the IoT healthcare and 
+wearable devices, prolonging the life of the battery.
+Fig. 15 illustrates the histogram of HSI over the patient risk level 
+distribution. A moderate severity of 0.4 – 0.6 range is produced by most 
+of the cases, whereas a high risk at 0.8 – 0.10 range is generated because 
+of a smaller number of cases. Based on this distribution, the patient 
+health conditions are captured efficiently using the proposed model, and 
+the dynamic task prioritization is allowed, in which the healthcare tasks 
+are important for receiving instant attention.
+The histogram of Training Reward Distribution of the proposed TP- 
+DSDRL method is shown in Fig. 16 . Between 40 and 60, the reward 
+values are included, signifying that effective offloading policies are 
+identified consistently by the learning agent. The model attains greater 
+reward values, providing efficient decision-making and stable 
+Fig. 9. Task utilization estimation of the proposed TP-DSDRL against the 
+number of tasks.
+Fig. 10. Impact of the uncertainty-aware module of the proposed TP- 
+DSDRL method.
+Fig. 11. Learning Performance of TP-DSDRL in terms of (a) Average Reward and Training Episodes and (b) Training Loss and Training Episodes.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+15 
+
+--- PAGE 16 ---
+convergence, resulting in minimized system latency and optimized uti -
+lization of resources in the healthcare environment based on edge and 
+cloud systems.
+Table 2 offers the performance of the TP-DSDRL technique over 
+healthcare-related datasets. The findings clearly reveal the exceptional 
+performance of the proposed method in task-offloading-based health -
+care management over diverse performance parameters. Moreover, the 
+Healthcare IoT dataset demonstrated better performance compared to 
+the Healthcare dataset, which clearly reveals the improved predictive 
+abilities. Furthermore, the average values of the various metrics help in 
+obtaining the total effectiveness of TP-DSDRL in dealing with healthcare 
+management through task offloading.
+The probability density plot of the proposed TP-DSDRL method over 
+the task processing latency distribution is illustrated in Fig. 17 . Around 
+140 ms, the curve of the density tops, signifying that most tasks of 
+healthcare are executed. Stable performance of the system along with 
+the reduced extreme delays is demonstrated by the sleek bell-shaped 
+distribution, verifying the efficiency of the proposed offloading strat -
+egy and task scheduling in the healthcare cloud and edge environment.
+The training reward convergence of the proposed TP-DSDRL method 
+under varied learning rates is displayed in Fig. 18 . While training the 
+epoch early, the reward value significantly maximizes when the envi -
+ronments are explored, and the optimal task offloading strategies are 
+optimized using the agent. Gradually, the reward stabilizes when the 
+number of epochs maximizes, signifying that the optimal policy has 
+converged by the reinforcement learning agent. The training stability 
+and effectiveness of the proposed TP-DSDRL method are confirmed by 
+the stable reward trend.
+5.6. Comparative analysis
+This section discusses the result analysis of the proposed approach 
+compared to other existing methods: EA-MFO [ 11 ], DTH-ATB-MAPPO 
+[ 12 ], DEEO [ 13 ], DPTARA [ 14 ], OO-DRL [ 15 ], DRL-LOA [ 17 ], and 
+PBDLB [ 18 ]. The comparison highlights the improvements in various 
+performance indicators achieved by the TP-DSDRL technique.
+Fig. 19 (a) and (b) illustrate a comparative analysis of the proposed 
+TP-DSDRL technique against existing techniques for Latency and 
+Execution Time. This analysis illustrates that the proposed TP-DSDRL 
+method has the lowest latency of 170 ms. This result reveals the effec -
+tiveness of the TP-DSDRL method in providing efficiency in the pro -
+cessing time. Moreover, the proposed TP-DSDRL technique attains an 
+Fig. 12. Healthcare Priority-Based Performance of the proposed TP-DSDRL method based on (a) Response Time and Task Priority and (b) Task offloading Distri -
+bution and Task Priority.
+Fig. 13. Task offloading scalability system for the proposed TP-DSDRL method in comparison of Number of tasks with (a) Throughput and (b) Edge Resource 
+Utilization.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+16 
+
+--- PAGE 17 ---
+execution time of 620 ms, which is lower compared to other methods, 
+resulting in faster completion of the offloading task in the management 
+of healthcare records.
+Comparison of the proposed TP-DSDRL technique against existing 
+techniques in terms of energy consumption and system throughput over 
+different numbers of tasks is shown in Fig. 20 . Over 250 tasks, the 
+proposed TP-DSDRL consumes 490 kJ of energy, whereas the energy 
+Fig. 14. Task Processing Histogram of the proposed TP-DSDRL method over (a) latency and (b) Energy Consumption.
+Fig. 15. Histogram of HSI over the patient risk level distribution.
+Fig. 16. Histogram of Training Reward Distribution of the proposed TP- 
+DSDRL method.
+Table 2 
+The efficiency of two varieties of healthcare dataset analysis applying the TP- 
+DSDRL technique.
+Measures Datasets Average 
+Values
+Healthcare 
+dataset
+Healthcare_IoT_Data
+Latency (ms) 190 150 170
+Execution Time (ms) 650 590 620
+Energy consumption (kJ) 530 450 490
+System Throughput 
+(Tasks/sec)
+95 85 90
+Processing Time (ms) 0.48 0.54 0.51
+Average resource 
+utilization (%)
+92 76 84
+Average task offloading 
+delay (ms)
+24 18 21
+Energy efficiency (%) 97.35 98.71 98.03
+Fig. 17. Probability density plot of the proposed TP-DSDRL method over the 
+task processing latency distribution.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+17 
+
+--- PAGE 18 ---
+consumption ratio for the other techniques is higher. When the energy 
+consumption is optimized, it provides an increased life for devices, 
+thereby providing customer satisfaction. Since the proposed TP-DSDRL 
+consumes less energy significantly, it not only provides an improved 
+life for the cloud-edge device but also makes the overall network envi -
+ronment sustainable. The system throughput of the proposed method 
+attains 90 tasks/sec in 600 tasks, describing higher values when 
+compared with the existing methods. The higher the throughput sig -
+nifies efficient ability to handle a greater volume of tasks.
+Comparison of the proposed TP-DSDRL technique against existing 
+techniques in terms of Processing Time and Average Resource Utiliza -
+tion is presented in Fig. 21 . The proposed method takes a processing 
+time of 0.51 ms for 250 tasks, which is also lower compared to other 
+methods, showing that it is efficient, meaning it responds quickly, which 
+is beneficial for healthcare professionals in their decision-making pro -
+cesses. The visualization demonstrates that the proposed TP-DSDRL 
+technique has a higher resource usage ratio than other techniques. 
+When 600 tasks are involved, the TP-DSDRL technique has an impres -
+sive average resource usage of 84 %, which is higher than the other 
+techniques. It shows that the proposed technique performs better in 
+handling the task of offloading in the management of healthcare in the 
+Cloud-Edge setup due to its efficiency.
+Fig. 22 illustrates the comparative analysis for various techniques 
+under different task loads in terms of average task offloading delay and 
+energy efficiency. The proposed TP-DSDRL method provides the lowest 
+offloading delay of 21 ms when compared to other traditional works 
+such as EA-MFO, DTH-ATB-MAPPO, DEEO, DPTARA, OO-DRL, DRL- 
+LOA, and PBDLB. Meanwhile, from 250 tasks, the proposed TP-DSDRL 
+technique has a high energy efficiency of 98.03 %, which surpasses 
+that of other techniques. Increased energy efficiency results reveal that 
+more tasks are performed with less energy consumption, especially for 
+healthcare services that require continuous task execution with less 
+battery consumption.
+5.7. Ablation study
+Table 3 depicts the ablation study for assessing the impact of key 
+components in the proposed TP-DSDRL framework. When the HTCF 
+method is eliminated, the capability in both the temporal dependency 
+and contextual relationships capturing in healthcare signals are lossed, 
+resulting in low-accuracy extraction of features. The absence of HSI 
+results in processing the healthcare tasks without contemplating the risk 
+levels of the patient, thereby hindering the prioritization of important 
+patient data. The elimination of the UAP-DSDRL method does not 
+determine the decision of optimal task offloading between the resources 
+of the device, edge, and cloud layers. For state processing, the basic 
+neural representation is relied upon when the SCNN is eliminated, 
+resulting in not efficient, non-informative, and compact representation 
+learning. In the elimination of uncertainty-aware learning mechanism, 
+the task offloading decisions are performed through the reinforcement 
+learning agent without uncertainty consideration in resource availabil -
+ity and network conditions. The single objective is optimized by the 
+reinforcement learning model when the multi objective rewared func -
+tion is removed. Furthermore, the simulation results indicate that the 
+outcomes of the TP-DSDRL model dropped significantly without these 
+components. On the other hand, when these components are incorpo -
+rated, the system demonstrates exceptional outcomes. Overall, the study 
+ensures that each component plays a vital role in achieving the high 
+performance of the TP-DSDRL approach in healthcare task offloading.
+5.8. Computational complexity analysis
+Table 4 illustrates the computational complexity analysis of both the 
+proposed TP-DSDRL approach and prior task offloading-based health -
+care management strategies. Here, the proposed strategy acquired low 
+Fig. 18. Training reward convergence of the proposed TP-DSDRL method 
+under varied learning rates.
+Fig. 19. Comparison of proposed TP-DSDRL technique against existing techniques (a) Latency (b) Execution Time.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+18 
+
+--- PAGE 19 ---
+computational complexity as compared to the EA-MFO, DTH-ATB- 
+MAPPO, DEEO, DPTARA, OO-DRL, DRL-LOA, and PBDLB approaches. 
+In addition, the pioneering mechanisms took more training time, but the 
+proposed TP-DSDRL approach obtained a training time of 1.03 h. 
+Table 4 ensures that the TP-DSDRL strategy not only minimizes 
+computational complexity but also optimizes training and execution 
+efficiency, which makes it a scalable solution for intelligent healthcare 
+management systems.
+6. Conclusion
+This research proposed a novel TP-DSDRL strategy for intelligent 
+task offloading in Cloud-Edge healthcare management systems. This 
+framework comprises three hierarchical layers such as device, edge, and 
+cloud layer, in which the physiological data are gathered in the device 
+layer from IoT-enabled medical devices. In the edge layer, the gathered 
+data are preprocessed through the preprocessing operations, including 
+noise removal, normalization, and missing value handling, which are 
+analyzed through the HTCF module by combining the transformer-based 
+attention and BiLSTM networks for extracting the features. The HSI is 
+assessed for analyzing the risk level of the patients and allows dynamic 
+task prioritization. A UAP-DSDRL method is implemented at the cloud 
+layer for determining the best decision of task offloading. The SCNN is 
+utilized for compact representation learning at the system state and Q 
+values estimation for offloading actions. The decision reliability is 
+improved through the integration of the uncertainty-aware learning 
+mechanism and a multi-objective reward function. In this work, the 
+efficiency of the proposed technique was tested by using two healthcare 
+datasets. The experimental results showed that the proposed framework 
+acquired higher performance outcomes, in which the proposed tech -
+nique reduced the latency by 170 ms, the energy consumption of 490 kJ, 
+Throughput of 90 Task/sec, Execution time of 620 ms, processing time 
+of 0.51 ms, Average task offloading delay of 21 ms, energy efficiency of 
+98.03 % and Resource utilization of 84 %. The comparative analysis 
+illustrated that the proposed technique outperformed previous methods 
+regarding optimized task offloading in Cloud-Edge health care man -
+agement systems. The TP-DSDRL method is extended in the future by 
+integrating federated learning (FL) at the edge layer to allow the 
+Fig. 20. Comparison of proposed TP-DSDRL technique against existing techniques (a) Energy Consumption (b) System Throughput.
+Fig. 21. Comparison of proposed TP-DSDRL technique against existing techniques (a) Processing Time (b) Average Resource Utilization.
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+19 
+
+--- PAGE 20 ---
+reinforcement learning model ’ s collaborative training without sharing 
+the sensitive data of the patient. The UAP-DSDRL policy and SCNN- 
+based state representation of the proposed method are updated locally 
+using edge nodes, which is resolved by the FL through synchronizing the 
+parameters of the global model. The blockchain technology is incorpo -
+rated along with the proposed method as the secure coordination layer 
+for model record updating, participating node verification, and 
+preserving the tamper-resistant logs of data transactions and task off -
+loading in healthcare environments.
+Human and animal rights
+This article does not contain any studies with human or animal 
+subjects performed by any of the authors.
+Informed consent
+Not applicable.
+CRediT authorship contribution statement
+Kumaran K: Formal analysis, Data curation, Conceptualization. 
+Saranya G: Methodology, Investigation, Funding acquisition. Siva 
+priya M S: Writing – review & editing, Software, Resources, Project 
+administration. Vidhyalakshmi M: Writing – original draft, Visualiza -
+tion, Validation, Supervision.
+Declaration of competing interest
+The authors declare that they have no known competing financial 
+Fig. 22. Comparative analysis for various techniques under different task loads (a) Average Task Offloading Delay (b) Energy Efficiency.
+Table 3 
+Ablation study for performance analysis of the proposed TP-DSDRL approach.
+Techniques Assessing Indicators
+Latency 
+(ms)
+Execution 
+time (ms)
+Energy 
+consumption 
+(kJ)
+System 
+Throughput 
+(Task/sec)
+Processing 
+time (ms)
+Average resource 
+utilization (%)
+Average task 
+offloading delay 
+(ms)
+Energy 
+efficiency (%)
+Proposed model 170 620 490 90 0.51 84 21 98.03
+Without the HTCF 
+method
+210 685 570 82 0.68 88.92 39 92.82
+Without HSI 250 700 590 79 0.71 90.93 42 90.65
+Without the UAP- 
+DSDRL method
+253 715 610 76 0.73 91.05 44 90.01
+Without SCNN 255 710 630 72 0.75 91.15 45 89.23
+Without Uncertainty- 
+Aware Learning 
+Mechanism
+259 716 660 61 0.79 93.21 47 86.92
+Without a Multi- 
+Objective Reward 
+Function
+270 725 710 59 0.83 95.65 51 85.33
+Table 4 
+Computational Complexity Analysis of the proposed TP-DSDRL technique is 
+compared with pioneering techniques.
+Techniques Number of 
+parameters 
+(M)
+FLOPs 
+(G)
+Model 
+size 
+(MB)
+Training 
+time 
+(hours)
+Execution 
+time (ms)
+Proposed 1.09 17 34.14 1.03 620
+EA-MFO 3.21 39.22 46.13 3.15 660
+DTH-ATB- 
+MAPPO
+5.04 25 48 4.17 760
+DEEO 3.75 47.10 40.12 3.47 700
+DPTARA 3.11 36 53.76 3.58 850
+OO-DRL 6.77 51.83 61.33 6.22 1100
+DRL-LOA 3.59 34.90 55.98 4.10 1110
+PBDLB 2.11 24.17 38.22 2.87 800
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+20 
+
+--- PAGE 21 ---
+interests or personal relationships that could have appeared to influence 
+the work reported in this paper.
+Funding
+Not applicable.
+Data availability
+The data that support the findings of this study are available from the 
+corresponding author upon reasonable request.
+References
+[1] N.S. Ganesh, V. Balasubramanian, D. Prasad, S.S. Velan, Deep learning-based user 
+authentication with hybrid encryption for secured blockchain-aided data storage 
+and optimal task offloading in mobile edge computing, Wirel. Netw. 31 (3) (2025) 
+2389 – 2417 .
+[2] X. Gao, P. He, Y. Zhou, X. Qin, A smart healthcare system for remote areas based on 
+the edge – cloud Continuum, Electron. (Basel) 13 (21) (2024) 4152 .
+[3] X. Ji, F. Gong, N. Wang, J. Xu, X. Yan, Cloud-edge collaborative service 
+architecture with large-tiny models based on deep reinforcement learning, IEEE 
+Trans. Cloud Comput. 13 (2025) 288 – 302 .
+[4] C. Sun, X. Li, C. Wang, Q. He, X. Wang, V.C. Leung, Hierarchical deep 
+reinforcement learning for joint service caching and computation offloading in 
+mobile edge-cloud computing, IEEE Trans. Serv. Comput. 17 (4) (2024) 
+1548 – 1564 .
+[5] H. Min, A.M. Rahmani, P. Ghaderkourehpaz, K. Moghaddasi, M. Hosseinzadeh, 
+A joint optimization of resource allocation management and multi-task offloading 
+in high-mobility vehicular multi-access edge computing networks, Ad. Hoc. Netw. 
+166 (2025) 103656 .
+[6] J. Li, M. Zhu, J. Liu, W. Liu, B. Huang, R. Liu, Blockchain-based reliable task 
+offloading framework for edge-cloud cooperative workflows in IoMT, Inf. Sci. (Ny) 
+668 (2024) 120530 .
+[7] B. Neha, S.K. Panda, P.K. Sahu, Task offloading and scheduling in osmotic 
+computing-based health monitoring systems, in: 2024 15th International 
+Conference on Computing Communication and Networking Technologies 
+(ICCCNT), IEEE, 2024, pp. 1 – 6 .
+[8] S.A.A. MS, M. DH, Task offloading and resource allocation using the echo tracking 
+optimization enabled QoS-aware scheduling for MEC-enabled WBAN Healthcare 
+system, Trans. Emerg. Telecommun. Technol. 36 (10) (2025) 70256 .
+[9] W. Zhang, H. Ou, Reinforcement learning based multi objective task scheduling for 
+energy efficient and cost effective cloud edge computing, Sci. Rep. 15 (1) (2025) 
+41716 .
+[10] P. Consul, I. Budhiraja, R. Arora, S. Garg, B.J. Choi, M.S. Hossain, Federated 
+reinforcement learning based task offloading approach for MEC-assisted WBAN- 
+enabled IoMT, Alex. Eng. J. 86 (2024) 56 – 66 .
+[11] B. Bhasker, S. Kaliraj, C. Gobinath, V. Sivakumar, Optimizing energy task 
+offloading technique using IoMT cloud in healthcare applications, J. Cloud 
+Comput. 14 (1) (2025) 9 .
+[12] A.K. Jameil, H. Al-Raweshidy, Ai-enabled healthcare and enhanced computational 
+resource management with digital twins into task offloading strategies, IEEE 
+Access 12 (2024) 90353 – 90370 .
+[13] A. Mondal, P.S. Chatterjee, N.K. Ray, An optimal novel approach for dynamic 
+energy-efficient task offloading in mobile edge-cloud computing networks, SN 
+Comput. Sci. 5 (5) (2024) 655 .
+[14] J. Anand, B. Karthikeyan, Dynamic priority-based task scheduling and adaptive 
+resource allocation algorithms for efficient edge computing in healthcare systems, 
+Results Eng. 25 (2025) 104342 .
+[15] X. Su, X. Fang, Z. Cheng, Z. Gong, C. Choi, Deep reinforcement learning based 
+latency-energy minimization in smart healthcare network, Digit. Commun. Netw. 
+11 (3) (2025) 795 – 805 .
+[16] Q. He, Z. Feng, Z. Chen, T. Nan, K. Li, H. Shen, K. Yu, X. Wang, Low-cost data 
+offloading strategy with deep reinforcement learning for smart healthcare system, 
+IEEE Trans. Serv. Comput. (2024) .
+[17] S.S. Saranya, P. Anusha, S. Chandragandhi, O.K. Kishore, N.P. Kumar, K. Srihari, 
+Enhanced decision-making in healthcare cloud-edge networks using deep 
+reinforcement and lion optimization algorithm, Biomed. Signal Process. Control 92 
+(2024) 105963 .
+[18] U. Shrawankar, S. Kokate, A. Jadhav, Optimized load balancing with task priority 
+for reliable data management in IoT-fog-enabled healthcare systems, Inf. Secur. J.: 
+Glob. Perspect. (2026) 1 – 17 .
+[19] P. Choppara, B. Lokesh, Efficient task scheduling and load balancing in fog 
+computing for crucial healthcare through deep reinforcement learning, IEEE Access 
+13 (2025) 26542 – 26563 .
+[20] S. Khan, S. Liu, L. Pan, G. Mei, Optimization-based Hybrid offloading framework 
+for IoMT in Edge-Cloud Healthcare systems, Future Gener. Comput. Syst. (2025) 
+108163 .
+[21] S.M.H. Motlagh, M.H. Rezvani, M. Khounsiavash, AI methods for personality traits 
+recognition: a systematic review, Neurocomputing 640 (2025) 130301 .
+[22] S. Asif, Y. Wenhui, S. ur-Rehman, Q. ul-ain, K. Amjad, Y. Yueyang, S. Jinhai, 
+M. Awais, Advancements and prospects of machine learning in medical 
+diagnostics: unveiling the future of diagnostic precision, Arch. Comput. Methods 
+Eng. 32 (2) (2025) 853 – 883 .
+[23] Z. Chen, J. Zhang, G. Min, Z. Ning, J. Li, Traffic-aware lightweight hierarchical 
+offloading toward adaptive slicing-enabled SAGIN, IEEE J. Sel. Areas Commun. 42 
+(12) (2024) 3536 – 3550 .
+[24] Z. Chen, B. Xiong, Z. Chen, G. Min, J. Li, Joint computation offloading and resource 
+allocation in multi-edge smart communities with personalized federated deep 
+reinforcement learning, IEEE Trans. Mob. Comput. 23 (12) (2024) 11604 – 11619 .
+[25] B. Xiao, C. Yu, X. Chen, Z. Chen, G. Min, Multi-agent collaboration for workflow 
+task offloading in end-edge-cloud environments using deep reinforcement learning, 
+IEEE Trans. Parallel Distrib. Syst. 36 (2025) 2281 – 2296 .
+[26] D. Van Anh, V.H. Nguyen, Leveraging priority queueing in IoT-edge-fog-cloud 
+infrastructures for efficient healthcare monitoring, IEEE Access 13 (2025) 
+80461 – 80477 .
+[27] R. Greif, K.G. Lauridsen, T. Dj ¨arv, J.E. Ek, V. Monnelly, K.G. Monsieurs, 
+N. Nikolaou, T.M. Olasveengen, F. Semeraro, A. Spartinou, J. Yeung, European 
+Resuscitation Council guidelines 2025 executive summary, Resuscitation 215 
+(2025) 110770 .
+[28] A. Thompson, K.E. Fleischmann, N.R. Smilowitz, L. de Las Fuentes, D. Mukherjee, 
+N.R. Aggarwal, F.S. Ahmad, R.B. Allen, S.E. Altin, A. Auerbach, J.S. Berger, AHA/ 
+ACC/ACS/ASNC/HRS/SCA/SCCT/SCMR/SVM guideline for perioperative 
+cardiovascular management for noncardiac surgery: a report of the American 
+College of Cardiology/American Heart Association Joint Committee on Clinical 
+Practice Guidelines, J. Am. Coll. Cardiol. 84 (19) (2024) 1869 – 1969 .
+[29] M.A.S. Awan, B. Singla, A. Hasan, M.O.W. Abdalla, R. Altaf, S. Singla, S. Afaq, M. 
+W. Mustafa, F. Asim, QTc interval prolongation in ICU patients: risk assessment 
+and predictors, Egypt. Heart J. 78 (1) (2026) 5 .
+K. K et al.                                                                                                                                                                                                                                        Knowledge-Based Systems 346 (2026) 116176 
+21 
+

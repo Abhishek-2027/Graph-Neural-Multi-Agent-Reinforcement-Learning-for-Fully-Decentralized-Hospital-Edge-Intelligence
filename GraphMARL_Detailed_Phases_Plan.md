@@ -43,22 +43,26 @@ To make intelligent decisions, a node must first understand itself. We implement
 
 ---
 
-## Phase 4: Neighborhood Intelligence (GraphSAGE)
-**Goal:** Allow nodes to understand the state of their immediate surroundings without global knowledge.
-**Focus:** GraphSAGE (Neighbor-Aware Graph Embedding Network).
+## Phase 4: Neighborhood Intelligence (GATv2)
+**Goal:** Allow nodes to understand the state of their immediate surroundings without global knowledge, with attention-based neighbor weighting.
+**Focus:** GATv2 — Graph Attention Network v2 (Neighbor-Aware Graph Embedding Network).
 
 ### Detailed Explanation
-This is where graph intelligence is injected. An isolated node cannot offload effectively. We implement **GraphSAGE**, a Graph Neural Network that aggregates the feature vectors of a node's *direct neighbors only*. For example, the ER aggregates states from the ICU and Ward. The GNN outputs a neighborhood embedding, which is then concatenated with the SCNN local state to form a complete **Fused State Representation**.
+This is where graph intelligence is injected. An isolated node cannot offload effectively. We implement **GATv2 (Graph Attention Network v2)**, an attention-based Graph Neural Network that learns *dynamic, context-dependent attention weights* over a node's *direct neighbors only*. Unlike MEAN-based aggregators (e.g., GraphSAGE), GATv2 assigns different importance to different neighbors based on both the query node's state and the neighbor's state. For example, the ER assigns high attention (α=0.7) to the ICU (low queue, fresh data) and low attention (α=0.1) to Radiology (stale data). Critically, GATv2 also incorporates **edge features** — `[bandwidth, latency, data_staleness, link_reliability]` — directly into the attention computation, enabling uncertainty-aware neighbor encoding that naturally integrates with the ANC protocol. The GATv2 output is concatenated with the SCNN local state to form a complete **Fused State Representation**.
+
+**Key advantage over GraphSAGE:** GATv2's attention weights (α_ij) are directly interpretable, providing the Explainable Decision Engine (EDE) with per-neighbor importance scores for human-readable decision rationale.
 
 ### Phase 3 & 4 Architecture
 ```mermaid
 flowchart LR
     A[Local Node Stats: CPU, Queue, HSI] --> SCNN[SCNN Extractor]
-    B[Neighbor Node Stats via NetworkX] --> GNN[GraphSAGE Encoder]
+    B[Neighbor Node Stats via NetworkX] --> GNN[GATv2 Encoder]
+    C[Edge Features: BW, Latency, Staleness] --> GNN
     SCNN --> F[Fused State Vector]
-    GNN --> F
+    GNN --> |Attention-Weighted Embedding| F
     
     style GNN fill:#e8f5e9,stroke:#2e7d32
+    style C fill:#fff9c4,stroke:#fbc02d
 ```
 
 ---
@@ -139,7 +143,7 @@ We freeze the trained PyTorch actor networks into optimized TensorRT engines. Th
 We execute massive test suites on both the simulator (scale: 500 nodes) and the hardware cluster (scale: 5 nodes). We compare GraphMARL against:
 1. **Local Only** (Phase 1 Baseline)
 2. **Centralized Cloud Broker**
-3. **Vanilla Distributed RL** (Baseline paper without GraphSAGE)
+3. **Vanilla Distributed RL** (Baseline paper without GATv2)
 4. **Greedy-Queue Handoff**
 
 We extract data for Latency, Deadline Satisfaction, Energy Consumption, and Bandwidth saved by ANC, finalizing the plots and tables for the research publication.

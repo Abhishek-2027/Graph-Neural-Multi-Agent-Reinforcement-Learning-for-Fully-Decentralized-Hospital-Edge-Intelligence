@@ -22,6 +22,16 @@ class TaskType(Enum):
     ROUTINE_VITALS_LOGGING = "Routine_Vitals_Logging"
 
 
+class TaskStatus(Enum):
+    GENERATED = "Generated"
+    ASSIGNED = "Assigned"
+    WAITING = "Waiting"
+    RUNNING = "Running"
+    COMPLETED = "Completed"
+    ORPHANED = "Orphaned"
+    RECOVERY_PENDING = "Recovery_Pending"
+
+
 @dataclass
 class MedicalTask:
     task_id: str
@@ -36,6 +46,22 @@ class MedicalTask:
     priority_score: float
     hitl_override: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    # Persistent lifecycle state (Phases 1-4)
+    current_node: str = ""
+    status: TaskStatus = TaskStatus.GENERATED
+    start_time_ms: Optional[float] = None
+    completion_time_ms: Optional[float] = None
+    remaining_compute_gflops: float = 0.0
+    total_compute_gflops: float = 0.0
+
+    def __post_init__(self):
+        if not self.current_node:
+            self.current_node = self.origin_node
+        if self.total_compute_gflops == 0.0:
+            self.total_compute_gflops = self.required_gflops
+        if self.remaining_compute_gflops == 0.0:
+            self.remaining_compute_gflops = self.required_gflops
 
     @property
     def is_emergency(self) -> bool:
@@ -57,6 +83,7 @@ class WorkloadGenerator:
     ):
         self.rng = np.random.RandomState(seed)
         self.hsi_calc = hsi_calc or HSICalculator()
+        self.tasks_generated = 0
 
         # Resolve dataset paths relative to project root
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -204,7 +231,7 @@ class WorkloadGenerator:
         task_id = f"task_{node_id}_{int(arrival_time_ms)}_{self.rng.randint(1000, 9999)}"
         patient_id = str(iot_rec.get("patient_id", f"P_{self.rng.randint(100, 999)}"))
 
-        return MedicalTask(
+        task = MedicalTask(
             task_id=task_id,
             patient_id=patient_id,
             origin_node=node_id,
@@ -218,6 +245,8 @@ class WorkloadGenerator:
             hitl_override=force_emergency,
             metadata=combined,
         )
+        self.tasks_generated += 1
+        return task
 
     def generate_poisson_stream(
         self,

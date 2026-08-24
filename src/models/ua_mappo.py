@@ -107,7 +107,7 @@ class UAMAPPOAgent(nn.Module):
 
     def __init__(
         self,
-        node_in_dim: int = 6,
+        node_in_dim: int = 8,
         edge_in_dim: int = 4,
         seq_len: int = 10,
         scnn_embed_dim: int = 64,

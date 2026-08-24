@@ -7,11 +7,14 @@ a standard Multi-Agent Gym / PettingZoo Parallel interface.
 
 from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
+import simpy
 
 from src.environment.hospital_graph import HospitalGraph
 from src.data.workload_generator import WorkloadGenerator, MedicalTask
 from src.utils.amrf_reward import AMRFReward
 from src.utils.hsi_calculator import HSICalculator
+from src.agents.edge_node import EdgeNodeAgent
+from src.models.pcas import PCASCongestionForecaster
 
 
 class HospitalEdgeEnv:
@@ -41,6 +44,9 @@ class HospitalEdgeEnv:
         self.max_neighbors = max_neighbors
         self.history_len = history_len
         self.max_steps = max_steps
+        
+        # Instantiate PCAS Forecaster for observation generation
+        self.pcas = PCASCongestionForecaster(history_window=self.history_len)
 
         # Action space: 0 = Local Exec, 1..max_neighbors = Offload to Neighbor k, (max_neighbors+1) = Queue
         self.action_dim = max_neighbors + 2
@@ -48,12 +54,20 @@ class HospitalEdgeEnv:
         # State tracking
         self.current_step = 0
         self.sim_time_ms = 0.0
-        self.node_queues: Dict[str, List[MedicalTask]] = {n: [] for n in self.agents}
+        
+        # SimPy Environment and decentralized EdgeNodes (Phases 1-4)
+        self.sim_env = simpy.Environment()
+        self.edge_nodes: Dict[str, EdgeNodeAgent] = {
+            n: EdgeNodeAgent(node_id=n, sim_env=self.sim_env, node_capacity_gflops=self.graph.graph.nodes[n].get("compute_gflops", 50.0)) for n in self.agents
+        }
+
+        # Node history matrix holds 8D features (6 standard + 2 PCAS)
         self.node_history: Dict[str, List[np.ndarray]] = {
-            n: [np.zeros(6, dtype=np.float32) for _ in range(history_len)] for n in self.agents
+            n: [np.zeros(8, dtype=np.float32) for _ in range(history_len)] for n in self.agents
         }
         self.current_tasks: Dict[str, Optional[MedicalTask]] = {n: None for n in self.agents}
         self.neighbor_cache: Dict[str, List[str]] = {}
+        self.recovery_metrics: Dict[str, int] = {"failures": 0, "orphaned": 0, "recovered": 0, "pending": 0}
 
     def reset(self, seed: Optional[int] = None) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
         if seed is not None:
@@ -61,20 +75,49 @@ class HospitalEdgeEnv:
 
         self.current_step = 0
         self.sim_time_ms = 0.0
-        self.node_queues = {n: [] for n in self.agents}
+        
+        # Re-initialize SimPy and decentralized edge nodes
+        self.sim_env = simpy.Environment()
+        self.edge_nodes = {
+            n: EdgeNodeAgent(node_id=n, sim_env=self.sim_env, node_capacity_gflops=self.graph.graph.nodes[n].get("compute_gflops", 50.0)) for n in self.agents
+        }
+        
         self.node_history = {
-            n: [np.zeros(6, dtype=np.float32) for _ in range(self.history_len)] for n in self.agents
+            n: [np.zeros(8, dtype=np.float32) for _ in range(self.history_len)] for n in self.agents
         }
         self.current_tasks = {n: None for n in self.agents}
+        self.recovery_metrics = {"failures": 0, "orphaned": 0, "recovered": 0, "pending": 0}
 
         # Initialize neighbor caches
         for n in self.agents:
             self.neighbor_cache[n] = self.graph.get_neighbors(n, active_only=True)[: self.max_neighbors]
 
-        # Generate initial task for each agent
+        # Generate initial task for each agent directly into their queues
         for n in self.agents:
             task = self.workload_gen.sample_task(node_id=n, arrival_time_ms=self.sim_time_ms)
-            self.current_tasks[n] = task
+            self.edge_nodes[n].push_task(task)
+
+        # Initial Phase 7 Broadcasts to populate neighbor caches before first step
+        for n in self.agents:
+            node_feat_6d = self.graph.get_node_features(n)
+            q_hist = [step_feats[3] for step_feats in self.node_history[n]]
+            pred_q, cong_prob = self.pcas.predict_numpy(q_hist, arrival_rate=1.0)
+            
+            msg = self.edge_nodes[n].anc.emit_broadcast(
+                current_time_ms=0.0,
+                cpu_util=node_feat_6d[0],
+                gpu_util=node_feat_6d[1],
+                queue_length=len(self.edge_nodes[n].task_queue),
+                avg_hsi=0.0,
+                power_w=node_feat_6d[4] * 50.0, # Approximate de-normalization
+                pred_queue=pred_q[0],
+                cong_prob=cong_prob,
+                has_emergency=False,
+                is_available=True,
+            )
+            # Deliver instantly for initialization
+            for nbr in self.neighbor_cache[n]:
+                self.edge_nodes[nbr].receive_state_update(msg)
 
         obs = self._get_all_observations()
         infos = {n: {} for n in self.agents}
@@ -84,12 +127,12 @@ class HospitalEdgeEnv:
         """
         Constructs the multi-part observation for a single agent.
         """
-        # 1. Local history matrix: (history_len, 6)
+        # 1. Local history matrix: (history_len, 8)
         local_hist = np.array(self.node_history[agent_id][-self.history_len :], dtype=np.float32)
 
-        # 2. Neighbor node features: (max_neighbors, 6)
+        # 2. Neighbor node features: (max_neighbors, 8)
         nbrs = self.neighbor_cache.get(agent_id, [])
-        nbr_nodes = np.zeros((self.max_neighbors, 6), dtype=np.float32)
+        nbr_nodes = np.zeros((self.max_neighbors, 8), dtype=np.float32)
         nbr_edges = np.zeros((self.max_neighbors, 4), dtype=np.float32)
         action_mask = np.zeros(self.action_dim, dtype=np.float32)
 
@@ -99,8 +142,28 @@ class HospitalEdgeEnv:
 
         for k, nbr in enumerate(nbrs):
             if k < self.max_neighbors:
-                nbr_nodes[k] = self.graph.get_node_features(nbr)
+                # Get the latest state of the neighbor STRICTLY from local P2P cache
+                msg = self.edge_nodes[agent_id].neighbor_state_cache.get(nbr)
+                if msg is not None:
+                    nbr_nodes[k] = np.array([
+                        msg.cpu_util,
+                        msg.gpu_util,
+                        16.0 / 32.0, # RAM (hardcoded approx for now, could be in msg)
+                        min(msg.queue_length / 50.0, 1.0),
+                        min(msg.power_w / 50.0, 1.0),
+                        msg.avg_hsi,
+                        msg.pred_queue,
+                        msg.cong_prob,
+                    ], dtype=np.float32)
+                    staleness_ms = max(self.sim_time_ms - msg.timestamp_ms, 0.0)
+                else:
+                    # No message ever received
+                    staleness_ms = 9999.0
+
                 nbr_edges[k] = self.graph.get_edge_features(agent_id, nbr)
+                # Overwrite data staleness (index 2) dynamically based on P2P cache
+                nbr_edges[k][2] = min(staleness_ms / 500.0, 1.0)
+                
                 if nbr not in self.graph.crashed_nodes:
                     action_mask[k + 1] = 1.0  # Offloading to valid neighbor allowed
 
@@ -108,7 +171,11 @@ class HospitalEdgeEnv:
         action_mask[-1] = 1.0
 
         # 3. Current task features (8D)
-        task = self.current_tasks[agent_id]
+        # For Phase 5, the agent observes the first task in its task_queue (waiting for a decision).
+        task = None
+        if self.edge_nodes[agent_id].task_queue:
+            task = self.edge_nodes[agent_id].task_queue[0]
+            
         if task is not None:
             task_feats = np.array(
                 [
@@ -125,6 +192,9 @@ class HospitalEdgeEnv:
             )
         else:
             task_feats = np.zeros(8, dtype=np.float32)
+            # If there's no task, only QUEUE (no-op) is a valid action
+            action_mask = np.zeros(self.action_dim, dtype=np.float32)
+            action_mask[-1] = 1.0
 
         return {
             "local_history": local_hist,
@@ -138,112 +208,227 @@ class HospitalEdgeEnv:
     def _get_all_observations(self) -> Dict[str, Dict[str, Any]]:
         return {agent: self._get_observation_for_agent(agent) for agent in self.agents}
 
+    def _transmit_task(self, task: MedicalTask, source: str, target: str, delay_ms: float):
+        """SimPy process modeling realistic network transmission delay before target node receives the task."""
+        yield self.sim_env.timeout(delay_ms)
+        task.current_node = target
+        self.edge_nodes[target].push_task(task)
+
+    def _transmit_message(self, msg, source: str, target: str, delay_ms: float):
+        """SimPy process for P2P ANC state exchange over network."""
+        yield self.sim_env.timeout(delay_ms)
+        self.edge_nodes[target].receive_state_update(msg)
+
     def step(
         self, actions: Dict[str, int]
     ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, float], Dict[str, bool], Dict[str, bool], Dict[str, Any]]:
         """
         Executes one joint action step across all agents.
+        Phase 5: Actions dictate what happens to the front task in each agent's task_queue.
         """
         self.current_step += 1
         time_step_ms = 50.0
+        
+        # 1. Handle SHN Failures & Recoveries (Phase 8)
+        for agent in self.agents:
+            # Detect crash
+            if agent in self.graph.crashed_nodes and self.edge_nodes[agent].is_available:
+                self.edge_nodes[agent].handle_crash()
+                self.recovery_metrics["failures"] += 1
+            
+            # Detect recovery
+            if agent not in self.graph.crashed_nodes and not self.edge_nodes[agent].is_available:
+                self.edge_nodes[agent].recover_node()
+
+            # Process orphaned tasks
+            if not self.edge_nodes[agent].is_available and self.edge_nodes[agent].orphaned_tasks:
+                remaining_orphans = []
+                for task in self.edge_nodes[agent].orphaned_tasks:
+                    self.recovery_metrics["orphaned"] += 1
+                    target, explanation = self.edge_nodes[agent].attempt_recovery(task)
+                    if target:
+                        self.recovery_metrics["recovered"] += 1
+                        edge_feats = self.graph.get_edge_features(agent, target)
+                        bandwidth = max(float(edge_feats[0] * 1000), 1.0)
+                        latency = float(edge_feats[1] * 100)
+                        tx_delay = (task.data_size_mb / (bandwidth / 8.0)) * 1000.0 + latency
+                        self.sim_env.process(self._transmit_task(task, agent, target, tx_delay))
+                    else:
+                        self.recovery_metrics["pending"] += 1
+                        remaining_orphans.append(task)
+                self.edge_nodes[agent].orphaned_tasks = remaining_orphans
+
+        # 2. Apply MARL decisions for each agent
+        for agent, action in actions.items():
+            if not self.edge_nodes[agent].is_available:
+                continue # Crashed nodes cannot execute normal MARL orchestrator actions
+
+            if not self.edge_nodes[agent].task_queue:
+                continue # No task to schedule
+                
+            # Pop the task we are making a decision on
+            task = self.edge_nodes[agent].task_queue.pop(0)
+            
+            if action == 0:
+                # LOCAL: Push to local execution queue to be scheduled
+                self.edge_nodes[agent].local_execution_queue.append(task)
+            elif action == self.action_dim - 1:
+                # QUEUE: Re-queue it (put back at front)
+                self.edge_nodes[agent].task_queue.insert(0, task)
+            else:
+                # OFFLOAD to neighbor
+                nbrs = self.neighbor_cache.get(agent, [])
+                idx = action - 1
+                if idx < len(nbrs):
+                    target_node = nbrs[idx]
+                    
+                    if target_node in self.graph.crashed_nodes:
+                        # Invalid, drop or penalize. For safety, push back to local.
+                        self.edge_nodes[agent].local_execution_queue.append(task)
+                    else:
+                        # Calculate network delay (size / bandwidth) + latency
+                        edge_feats = self.graph.get_edge_features(agent, target_node)
+                        bandwidth_mbps = float(edge_feats[0] * 1000) # De-normalize approx
+                        latency_ms = float(edge_feats[1] * 100) # De-normalize approx
+                        bandwidth_mbps = max(bandwidth_mbps, 1.0)
+                        
+                        tx_delay = (task.data_size_mb / (bandwidth_mbps / 8.0)) * 1000.0 + latency_ms
+                        
+                        # Start transmission process
+                        self.sim_env.process(self._transmit_task(task, agent, target_node, tx_delay))
+                else:
+                    # Invalid action index (e.g., masking failed), fallback to LOCAL
+                    self.edge_nodes[agent].local_execution_queue.append(task)
+
+        # 2. Advance actual simulated time
         self.sim_time_ms += time_step_ms
+        self.sim_env.run(until=self.sim_time_ms)
 
         rewards = {}
         infos = {}
 
-        # Collect current queue lengths for FATS fairness
-        all_queues = [len(self.node_queues[n]) for n in self.agents]
-
         for agent in self.agents:
-            action = actions.get(agent, 0)
-            task = self.current_tasks[agent]
-            nbrs = self.neighbor_cache.get(agent, [])
-
-            if task is None or agent in self.graph.crashed_nodes:
-                rewards[agent] = -1.0 if agent in self.graph.crashed_nodes else 0.0
-                infos[agent] = {"executed_node": agent, "latency_ms": 0.0, "deadline_missed": False}
-                continue
-
-            target_node = agent
-            comm_delay_ms = 0.0
-            comm_cost_kb = 0.0
-
-            if action == 0:
-                # Local Execution
-                target_node = agent
-            elif 1 <= action <= len(nbrs):
-                # Offload to Neighbor
-                target_node = nbrs[action - 1]
-                comm_delay_ms = self.graph.calculate_transmission_delay_ms(agent, target_node, task.data_size_mb)
-                comm_cost_kb = task.data_size_mb * 1024.0
-            else:
-                # Queue Task
-                self.node_queues[agent].append(task)
-                target_node = agent
-                comm_delay_ms = 0.0
-
-            # Compute execution delay
-            target_data = self.graph.graph.nodes[target_node]
-            compute_capacity = max(target_data.get("compute_gflops", 50.0), 10.0)
-            exec_delay_ms = (task.required_gflops / compute_capacity) * 1000.0
-            queue_delay_ms = len(self.node_queues[target_node]) * 10.0
-
-            total_latency_ms = comm_delay_ms + queue_delay_ms + exec_delay_ms
-            deadline_ms = task.deadline_ms
-            deadline_missed = total_latency_ms > deadline_ms
-
-            # Energy calculation (Joules)
-            power_w = target_data.get("power_w", 20.0)
-            energy_joules = (power_w * (exec_delay_ms / 1000.0)) + (0.5 * (comm_delay_ms / 1000.0))
-
-            # Target node utilization update
-            cpu_util = min(0.95, (len(self.node_queues[target_node]) + 1) * 0.15)
-
-            # Compute AMRF Reward
-            reward_dict = self.amrf.compute_reward(
-                hsi=task.hsi,
-                latency_ms=total_latency_ms,
-                deadline_ms=deadline_ms,
-                energy_joules=energy_joules,
-                comm_cost_kb=comm_cost_kb,
-                cpu_util=cpu_util,
-                neighborhood_queues=all_queues,
-                hitl_override=task.hitl_override,
-                node_crashed=(target_node in self.graph.crashed_nodes),
-            )
-
-            rewards[agent] = reward_dict["total_reward"]
-            infos[agent] = {
-                "latency_ms": total_latency_ms,
-                "deadline_ms": deadline_ms,
-                "deadline_missed": deadline_missed,
-                "energy_joules": energy_joules,
-                "comm_cost_kb": comm_cost_kb,
-                "target_node": target_node,
-                "is_emergency": task.is_emergency,
-                "reward_breakdown": reward_dict,
-            }
-
-            # Update target node state in graph
+            # 3. Get Public State Summaries and Update Hospital Graph
+            pub_state = self.edge_nodes[agent].get_public_state()
             self.graph.update_node_state(
-                node_id=target_node,
-                cpu_util=cpu_util,
-                gpu_util=cpu_util * 0.7,
-                queue_len=len(self.node_queues[target_node]),
-                avg_hsi=task.hsi,
+                node_id=agent,
+                cpu_util=pub_state["cpu_util"],
+                gpu_util=pub_state["gpu_util"],
+                queue_len=pub_state["queue_length"],
+                avg_hsi=0.0, # Updated from summary if needed
                 current_time_ms=self.sim_time_ms,
             )
 
-            # Update local history for agent
-            node_feat = self.graph.get_node_features(agent)
-            self.node_history[agent].append(node_feat)
+            # 4. FATS (Fairness-Aware Task Scheduling) and Reward Calculation
+            # Get neighborhood queue sizes (including self)
+            nbrs = self.neighbor_cache.get(agent, [])
+            valid_nbrs = [n for n in nbrs if n not in self.graph.crashed_nodes] + [agent]
+            
+            neighborhood_queues = [
+                len(self.edge_nodes[n].task_queue) + len(self.edge_nodes[n].local_execution_queue)
+                for n in valid_nbrs
+            ]
+            
+            # Note: This is an approximation. A robust MARL environment associates rewards with specific tasks.
+            # Here we apply the AMRFReward mechanism based on tasks completed this step.
+            new_completions = [t for t in self.edge_nodes[agent].completed_tasks if t.completion_time_ms > (self.sim_time_ms - time_step_ms)]
+            
+            if len(new_completions) > 0:
+                reward = 0.0
+                for t in new_completions:
+                    latency = t.completion_time_ms - t.arrival_time_ms
+                    energy = t.total_compute_gflops * (self.graph.graph.nodes[agent].get("power_w", 20.0) / self.graph.graph.nodes[agent].get("compute_gflops", 50.0))
+                    
+                    # Compute AMRF reward for this task
+                    task_reward_dict = self.amrf.compute_reward(
+                        hsi=t.hsi,
+                        latency_ms=latency,
+                        deadline_ms=t.deadline_ms,
+                        energy_joules=energy,
+                        comm_cost_kb=t.data_size_mb * 1024.0 if t.origin_node != t.current_node else 0.0,
+                        cpu_util=pub_state["cpu_util"],
+                        q_variance=0.0, # Not calculating true variance in env
+                        neighborhood_queues=neighborhood_queues,
+                        hitl_override=t.hitl_override,
+                        node_crashed=agent in self.graph.crashed_nodes,
+                    )
+                    reward += task_reward_dict["total_reward"]
+                
+                # Average reward over completions
+                reward /= len(new_completions)
+            else:
+                # If no completions, give a small negative shaping reward for having queued tasks
+                q_len = pub_state["queue_length"]
+                fats_bonus = self.amrf.lambda_fats * self.amrf.calculate_fats(neighborhood_queues)
+                reward = -0.01 * q_len + fats_bonus
+                
+                # Internal Error Fix: Prevent Ping-Pong Offloading
+                # If the agent chose to offload this step, penalize it to discourage infinite offloading
+                act = actions.get(agent, -1)
+                nbrs_len = len(self.neighbor_cache.get(agent, []))
+                if 1 <= act <= nbrs_len:
+                    reward -= 0.05 # Penalty for offloading to break the ping-pong loop
+                elif act == 0:
+                    reward += 0.5 # CPU FAST-TEST: Reward for executing locally
+            
+            rewards[agent] = reward
+
+            infos[agent] = {
+                "completions": len(new_completions),
+                "queue_len": pub_state["queue_length"],
+                "fats_bonus": self.amrf.calculate_fats(neighborhood_queues)
+            }
+
+            # 5. PCAS Update local history for agent
+            node_feat_6d = self.graph.get_node_features(agent)
+            
+            # Predict future congestion using the last 10 queue states from history
+            q_hist = [step_feats[3] for step_feats in self.node_history[agent]]
+            pred_q, cong_prob = self.pcas.predict_numpy(q_hist, arrival_rate=1.0)
+            
+            # Append PCAS predictions to make it 8D
+            node_feat_8d = np.concatenate([node_feat_6d, np.array([pred_q[0], cong_prob], dtype=np.float32)])
+            
+            self.node_history[agent].append(node_feat_8d)
             if len(self.node_history[agent]) > self.history_len:
                 self.node_history[agent].pop(0)
 
-            # Spawn next task for agent
-            self.current_tasks[agent] = self.workload_gen.sample_task(
-                node_id=agent, arrival_time_ms=self.sim_time_ms
-            )
+            # 6. Adaptive Neighbor Communication (ANC) Broadcast Check
+            # Has emergency if any task currently waiting is an emergency
+            has_emg = any([t.is_emergency for t in self.edge_nodes[agent].task_queue])
+            if self.edge_nodes[agent].anc.should_broadcast(
+                current_time_ms=self.sim_time_ms,
+                current_queue_len=pub_state["queue_length"],
+                current_cpu_util=pub_state["cpu_util"],
+                has_emergency_task=has_emg,
+                is_available=pub_state["available"],
+            ):
+                # Emit the broadcast message
+                msg = self.edge_nodes[agent].anc.emit_broadcast(
+                    current_time_ms=self.sim_time_ms,
+                    cpu_util=pub_state["cpu_util"],
+                    gpu_util=pub_state["gpu_util"],
+                    queue_length=pub_state["queue_length"],
+                    avg_hsi=0.0,
+                    power_w=self.graph.graph.nodes[agent].get("power_w", 20.0),
+                    pred_queue=pred_q[0],
+                    cong_prob=cong_prob,
+                    has_emergency=has_emg,
+                    is_available=pub_state["available"],
+                )
+                
+                # Transmit to all neighbors
+                for nbr in self.neighbor_cache.get(agent, []):
+                    if nbr not in self.graph.crashed_nodes:
+                        # Message size is 128 bytes (0.000122 MB)
+                        tx_delay = self.graph.calculate_transmission_delay_ms(agent, nbr, 128.0 / 1024.0 / 1024.0)
+                        self.sim_env.process(self._transmit_message(msg, agent, nbr, tx_delay))
+
+            # Spawn next task for agent (simulate random arrival over this step)
+            # Probability based on time step
+            if self.rng.rand() < 0.2: # 20% chance per 50ms step
+                new_task = self.workload_gen.sample_task(node_id=agent, arrival_time_ms=self.sim_time_ms)
+                self.edge_nodes[agent].push_task(new_task)
 
         terminated = {agent: self.current_step >= self.max_steps for agent in self.agents}
         truncated = {agent: False for agent in self.agents}

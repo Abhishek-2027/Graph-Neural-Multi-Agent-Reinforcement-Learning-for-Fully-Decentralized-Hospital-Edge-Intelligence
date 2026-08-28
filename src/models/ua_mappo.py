@@ -1,17 +1,26 @@
 """
 Uncertainty-Aware Multi-Agent Proximal Policy Optimization (UA-MAPPO) for GraphMARL.
 
-Combines SCNN local perception, GATv2 graph attention embedding, and PCAS congestion
-forecasting with an Actor-Critic architecture featuring an ensemble of value estimators
-to penalize high-variance (stale/unreliable) offloading decisions.
+Combines:
+    - SCNN local perception
+    - GATv2 graph attention embedding
+    - PCAS congestion forecasting
+    - Actor-Critic architecture
+    - Ensemble value estimators for epistemic uncertainty
+
+The ensemble critic estimates uncertainty from the variance between
+multiple independent value heads.
+
+Author: Your Name
 """
 
-from typing import Dict, Tuple, List, Optional, Any
+from typing import Dict, Tuple, Optional, Any
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
-import numpy as np
 
 from src.models.scnn import StackedCNN
 from src.models.gatv2 import GATv2NeighborEncoder
@@ -20,49 +29,104 @@ from src.models.pcas import PCASCongestionForecaster
 
 class UAMAPPOActor(nn.Module):
     """
-    Decentralized Actor Policy mapping fused state to action probabilities
-    with dynamic action masking for unavailable/crashed neighbor nodes.
+    Decentralized Actor Policy.
+
+    Maps the fused state representation to action probabilities.
+
+    Actions:
+        0               -> Local execution
+        1..max_neighbors -> Neighbor offloading
+        max_neighbors+1 -> Queue/wait action
+
+    Dynamic action masking is supported for unavailable/crashed neighbors.
     """
 
     def __init__(
         self,
         fused_dim: int = 145,
-        action_dim: int = 7,  # Local, Nbr_1..Nbr_5, Queue
+        action_dim: int = 7,
         hidden_dim: int = 128,
     ):
         super().__init__()
+
         self.action_dim = action_dim
+
         self.net = nn.Sequential(
             nn.Linear(fused_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
+
             nn.Linear(hidden_dim, hidden_dim),
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
+
             nn.Linear(hidden_dim, action_dim),
         )
 
     def forward(
-        self, fused_state: torch.Tensor, action_mask: Optional[torch.Tensor] = None
+        self,
+        fused_state: torch.Tensor,
+        action_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[Categorical, torch.Tensor]:
         """
-        Returns categorical action distribution and unmasked logits.
+        Args:
+            fused_state:
+                Tensor of shape (Batch, fused_dim)
+
+            action_mask:
+                Tensor of shape (Batch, action_dim)
+                1 = valid action
+                0 = invalid action
+
+        Returns:
+            dist:
+                Categorical action distribution
+
+            logits:
+                Original unmasked logits
         """
+
         logits = self.net(fused_state)
+
         if action_mask is not None:
-            # Mask out invalid/dead actions with large negative value
-            masked_logits = logits.masked_fill(action_mask == 0, -1e9)
+            # Ensure mask has same dtype/device semantics.
+            action_mask = action_mask.to(
+                device=logits.device,
+                dtype=torch.bool,
+            )
+
+            # Invalid actions receive a very negative logit.
+            masked_logits = logits.masked_fill(
+                ~action_mask,
+                -1e9,
+            )
         else:
             masked_logits = logits
 
         dist = Categorical(logits=masked_logits)
+
         return dist, logits
 
 
 class EnsembleCritic(nn.Module):
     """
-    Critic network with K=5 independent value estimation heads
-    to quantify predictive epistemic uncertainty under dynamic, stale environments.
+    Ensemble Critic with multiple independent value heads.
+
+    The disagreement between heads is used as an epistemic uncertainty
+    estimate.
+
+    For K critics:
+
+        V_1(s)
+        V_2(s)
+        ...
+        V_K(s)
+
+    Mean:
+        mean(V_i)
+
+    Variance:
+        Var(V_i)
     """
 
     def __init__(
@@ -72,37 +136,98 @@ class EnsembleCritic(nn.Module):
         num_critics: int = 5,
     ):
         super().__init__()
+
         self.num_critics = num_critics
+
         self.heads = nn.ModuleList(
             [
                 nn.Sequential(
                     nn.Linear(fused_dim, hidden_dim),
                     nn.ReLU(),
+
                     nn.Linear(hidden_dim, hidden_dim),
                     nn.ReLU(),
+
                     nn.Linear(hidden_dim, 1),
                 )
                 for _ in range(num_critics)
             ]
         )
 
-    def forward(self, fused_state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        fused_state: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
+        Args:
+            fused_state:
+                (Batch, fused_dim)
+
         Returns:
-            mean_value: (Batch, 1) average predicted state-value
-            variance: (Batch, 1) Q-value / State-value epistemic variance
-            all_values: (Batch, num_critics) individual critic predictions
+            mean_value:
+                (Batch, 1)
+
+            variance:
+                (Batch, 1)
+
+            all_values:
+                (Batch, num_critics)
         """
-        preds = torch.cat([head(fused_state) for head in self.heads], dim=-1)  # (Batch, K)
-        mean_val = preds.mean(dim=-1, keepdim=True)
-        var_val = preds.var(dim=-1, keepdim=True, unbiased=False)
-        return mean_val, var_val, preds
+
+        predictions = torch.cat(
+            [
+                head(fused_state)
+                for head in self.heads
+            ],
+            dim=-1,
+        )
+
+        # predictions shape:
+        # (Batch, num_critics)
+
+        mean_value = predictions.mean(
+            dim=-1,
+            keepdim=True,
+        )
+
+        variance = predictions.var(
+            dim=-1,
+            keepdim=True,
+            unbiased=False,
+        )
+
+        return mean_value, variance, predictions
 
 
 class UAMAPPOAgent(nn.Module):
     """
-    Complete GraphMARL Agent combining perception modules (SCNN + GATv2 + PCAS)
-    and decision modules (Actor + Ensemble Critic).
+    Complete UA-MAPPO GraphMARL Agent.
+
+    Architecture:
+
+        Local History
+              |
+             SCNN
+              |
+              +------------------+
+                                 |
+        Neighbor Graph --> GATv2 |
+                                 |
+        Queue History --> PCAS   |
+                                 |
+        Task Features -----------+
+                                 |
+        Self Node ----------------+
+                                 |
+                            Fused State
+                                 |
+                    +------------+------------+
+                    |                         |
+                  Actor                    Critic
+                    |                         |
+                  Action             Ensemble Values
+                                              |
+                                          Uncertainty
     """
 
     def __init__(
@@ -120,17 +245,66 @@ class UAMAPPOAgent(nn.Module):
         gamma: float = 0.99,
         clip_ratio: float = 0.2,
         entropy_coef: float = 0.01,
+        device: Optional[torch.device] = None,
     ):
         super().__init__()
+
+        # ---------------------------------------------------------
+        # Device configuration
+        # ---------------------------------------------------------
+
+        if device is None:
+            device = torch.device(
+                "cuda"
+                if torch.cuda.is_available()
+                else "cpu"
+            )
+
+        self.device = device
+
+        # Enable cuDNN benchmark for fixed-size inputs.
+        if torch.cuda.is_available():
+            torch.backends.cudnn.benchmark = True
+
+        # ---------------------------------------------------------
+        # Basic configuration
+        # ---------------------------------------------------------
+
+        self.node_in_dim = node_in_dim
+        self.edge_in_dim = edge_in_dim
+        self.seq_len = seq_len
+
+        self.scnn_embed_dim = scnn_embed_dim
+        self.gat_embed_dim = gat_embed_dim
+
         self.max_neighbors = max_neighbors
+
+        # Actions:
+        #   0 = local
+        #   1..max_neighbors = neighbors
+        #   max_neighbors+1 = queue
         self.action_dim = max_neighbors + 2
+
+        self.num_critics = num_critics
+
         self.mu_uncertainty = mu_uncertainty
         self.gamma = gamma
         self.clip_ratio = clip_ratio
         self.entropy_coef = entropy_coef
 
+        self.lr_actor = lr_actor
+        self.lr_critic = lr_critic
+
+        # ---------------------------------------------------------
         # 1. Perception Encoders
-        self.scnn = StackedCNN(in_channels=node_in_dim, seq_len=seq_len, embedding_dim=scnn_embed_dim)
+        # ---------------------------------------------------------
+
+        self.scnn = StackedCNN(
+            in_channels=node_in_dim,
+            seq_len=seq_len,
+            embedding_dim=scnn_embed_dim,
+        )
+
         self.gatv2 = GATv2NeighborEncoder(
             node_in_dim=node_in_dim,
             edge_in_dim=edge_in_dim,
@@ -138,21 +312,98 @@ class UAMAPPOAgent(nn.Module):
             out_dim=gat_embed_dim,
             num_heads=4,
         )
-        self.pcas = PCASCongestionForecaster(history_window=seq_len, forecast_horizon=2, hidden_dim=32)
 
-        # Fused dimension: SCNN (64) + GATv2 (64) + Task (8) + PCAS (3) + Self (6) = 145
-        self.fused_dim = scnn_embed_dim + gat_embed_dim + 8 + 3 + node_in_dim
+        self.pcas = PCASCongestionForecaster(
+            history_window=seq_len,
+            forecast_horizon=2,
+            hidden_dim=32,
+        )
 
-        # 2. Decision Networks
-        self.actor = UAMAPPOActor(fused_dim=self.fused_dim, action_dim=self.action_dim)
-        self.critic = EnsembleCritic(fused_dim=self.fused_dim, num_critics=num_critics)
+        # ---------------------------------------------------------
+        # 2. Fused state dimension
+        # ---------------------------------------------------------
+        #
+        # SCNN       = scnn_embed_dim
+        # GATv2      = gat_embed_dim
+        # Task       = 8
+        # PCAS       = 3
+        # Self node  = node_in_dim
+        #
+        # Default:
+        #
+        # 64 + 64 + 8 + 3 + 8 = 147
+        #
+        # IMPORTANT:
+        # The original code/comment said 145 while node_in_dim
+        # was 8. The actual dimension is 147.
+        # ---------------------------------------------------------
 
-        # 3. Optimizers
+        self.task_feature_dim = 8
+        self.pcas_feature_dim = 3
+
+        self.fused_dim = (
+            scnn_embed_dim
+            + gat_embed_dim
+            + self.task_feature_dim
+            + self.pcas_feature_dim
+            + node_in_dim
+        )
+
+        # ---------------------------------------------------------
+        # 3. Actor
+        # ---------------------------------------------------------
+
+        self.actor = UAMAPPOActor(
+            fused_dim=self.fused_dim,
+            action_dim=self.action_dim,
+            hidden_dim=128,
+        )
+
+        # ---------------------------------------------------------
+        # 4. Ensemble Critic
+        # ---------------------------------------------------------
+
+        self.critic = EnsembleCritic(
+            fused_dim=self.fused_dim,
+            hidden_dim=128,
+            num_critics=num_critics,
+        )
+
+        # ---------------------------------------------------------
+        # Move model to device
+        # ---------------------------------------------------------
+
+        self.to(self.device)
+
+        # ---------------------------------------------------------
+        # Optimizers
+        # ---------------------------------------------------------
+
+        # Actor optimizer includes:
+        #   SCNN
+        #   GATv2
+        #   PCAS
+        #   Actor
+        #
+        # If you do NOT want PCAS to be trained jointly, remove
+        # self.pcas.parameters() from this optimizer.
+
         self.actor_opt = torch.optim.Adam(
-            list(self.scnn.parameters()) + list(self.gatv2.parameters()) + list(self.actor.parameters()),
+            list(self.scnn.parameters())
+            + list(self.gatv2.parameters())
+            + list(self.pcas.parameters())
+            + list(self.actor.parameters()),
             lr=lr_actor,
         )
-        self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr_critic)
+
+        self.critic_opt = torch.optim.Adam(
+            self.critic.parameters(),
+            lr=lr_critic,
+        )
+
+    # =============================================================
+    # STATE ENCODING
+    # =============================================================
 
     def encode_fused_state(
         self,
@@ -164,37 +415,156 @@ class UAMAPPOAgent(nn.Module):
         action_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Fuses local perception, graph attention, and task context into unified state representation.
+        Fuse SCNN, GATv2, PCAS, task and self-node features.
+
+        Expected shapes:
+
+            local_history:
+                (B, seq_len, node_features)
+                OR
+                (B, node_features, seq_len)
+
+            self_node:
+                (B, node_features)
+
+            neighbor_nodes:
+                depends on GATv2 implementation
+
+            neighbor_edges:
+                depends on GATv2 implementation
+
+            task_features:
+                (B, 8)
+
+            action_mask:
+                (B, action_dim)
+
         Returns:
-            fused_state: (Batch, fused_dim)
-            attention_weights: (Batch, K)
+
+            fused_state:
+                (B, fused_dim)
+
+            attention_weights:
+                GATv2 attention weights
         """
+
+        # ---------------------------------------------------------
         # 1. SCNN Local Embedding
-        h_local = self.scnn(local_history)  # (B, 64)
+        # ---------------------------------------------------------
 
+        h_local = self.scnn(local_history)
+
+        # ---------------------------------------------------------
         # 2. GATv2 Graph Embedding
-        # Construct neighbor mask from action_mask (skip action 0 and action -1)
-        nbr_mask = None
+        # ---------------------------------------------------------
+
+        neighbor_mask = None
+
         if action_mask is not None:
-            nbr_mask = action_mask[:, 1 : self.max_neighbors + 1]
+            neighbor_mask = action_mask[
+                :,
+                1 : self.max_neighbors + 1,
+            ]
 
-        h_graph, attn_weights = self.gatv2(self_node, neighbor_nodes, neighbor_edges, neighbor_mask=nbr_mask)
+        h_graph, attention_weights = self.gatv2(
+            self_node,
+            neighbor_nodes,
+            neighbor_edges,
+            neighbor_mask=neighbor_mask,
+        )
 
-        # 3. PCAS Congestion Forecasting
-        # Extract queue history from local_history channel 3 (queue length)
-        # local_history is (B, 10, 6) or (B, 6, 10)
-        if local_history.shape[1] == 10:
-            queue_hist = local_history[:, :, 3]
+        # ---------------------------------------------------------
+        # 3. PCAS Congestion Forecast
+        # ---------------------------------------------------------
+
+        # local_history can be:
+        #
+        # (B, seq_len, features)
+        #
+        # or:
+        #
+        # (B, features, seq_len)
+
+        if local_history.dim() != 3:
+            raise ValueError(
+                "local_history must have 3 dimensions: "
+                "(B, seq_len, features) or "
+                "(B, features, seq_len). "
+                f"Got shape: {tuple(local_history.shape)}"
+            )
+
+        if local_history.shape[1] == self.seq_len:
+            # (B, seq_len, features)
+            #
+            # Channel/index 3 = queue length
+            queue_history = local_history[:, :, 3]
+
+        elif local_history.shape[2] == self.seq_len:
+            # (B, features, seq_len)
+            queue_history = local_history[:, 3, :]
+
         else:
-            queue_hist = local_history[:, 3, :]
+            raise ValueError(
+                "Unable to determine sequence dimension in "
+                f"local_history with shape {tuple(local_history.shape)}. "
+                f"Expected seq_len={self.seq_len}."
+            )
 
-        arrival_rate = task_features[:, 4:5]  # Task priority / arrival proxy
-        pred_queues, cong_prob = self.pcas(queue_hist, arrival_rate)
-        h_pcas = torch.cat([pred_queues, cong_prob], dim=-1)  # (B, 3)
+        # Task feature index 4 is used as arrival-rate proxy.
+        if task_features.shape[-1] < 5:
+            raise ValueError(
+                "task_features must contain at least 5 features. "
+                f"Got shape: {tuple(task_features.shape)}"
+            )
 
-        # 4. State Fusion Concatenation
-        fused = torch.cat([h_local, h_graph, task_features, h_pcas, self_node], dim=-1)
-        return fused, attn_weights
+        arrival_rate = task_features[:, 4:5]
+
+        pred_queues, congestion_probability = self.pcas(
+            queue_history,
+            arrival_rate,
+        )
+
+        h_pcas = torch.cat(
+            [
+                pred_queues,
+                congestion_probability,
+            ],
+            dim=-1,
+        )
+
+        # ---------------------------------------------------------
+        # 4. State Fusion
+        # ---------------------------------------------------------
+
+        fused_state = torch.cat(
+            [
+                h_local,
+                h_graph,
+                task_features,
+                h_pcas,
+                self_node,
+            ],
+            dim=-1,
+        )
+
+        # Safety check.
+        if fused_state.shape[-1] != self.fused_dim:
+            raise RuntimeError(
+                f"Fused state dimension mismatch. "
+                f"Expected {self.fused_dim}, "
+                f"got {fused_state.shape[-1]}.\n"
+                f"SCNN={h_local.shape[-1]}, "
+                f"GAT={h_graph.shape[-1]}, "
+                f"Task={task_features.shape[-1]}, "
+                f"PCAS={h_pcas.shape[-1]}, "
+                f"Self={self_node.shape[-1]}"
+            )
+
+        return fused_state, attention_weights
+
+    # =============================================================
+    # INFERENCE
+    # =============================================================
 
     def get_action_and_value(
         self,
@@ -202,37 +572,151 @@ class UAMAPPOAgent(nn.Module):
         deterministic: bool = False,
     ) -> Dict[str, Any]:
         """
-        Inference forward pass for environment step.
+        Perform one environment inference step.
+
+        Args:
+            obs_dict:
+                Dictionary containing:
+                    local_history
+                    neighbor_nodes
+                    neighbor_edges
+                    task_features
+                    action_mask
+
+            deterministic:
+                If True, choose highest-probability action.
+                If False, sample from policy.
+
+        Returns:
+            Dictionary containing:
+                action
+                log_prob
+                value
+                variance
+                attention_weights
+                fused_state
         """
-        # Convert numpy observations to tensors
-        local_hist = torch.from_numpy(obs_dict["local_history"]).unsqueeze(0)
-        self_node = torch.from_numpy(obs_dict["local_history"][-1]).unsqueeze(0)
-        nbr_nodes = torch.from_numpy(obs_dict["neighbor_nodes"]).unsqueeze(0)
-        nbr_edges = torch.from_numpy(obs_dict["neighbor_edges"]).unsqueeze(0)
-        task_feats = torch.from_numpy(obs_dict["task_features"]).unsqueeze(0)
-        act_mask = torch.from_numpy(obs_dict["action_mask"]).unsqueeze(0)
+
+        # ---------------------------------------------------------
+        # Convert observations to tensors
+        # ---------------------------------------------------------
+
+        local_history = torch.as_tensor(
+            obs_dict["local_history"],
+            dtype=torch.float32,
+            device=self.device,
+        ).unsqueeze(0)
+
+        neighbor_nodes = torch.as_tensor(
+            obs_dict["neighbor_nodes"],
+            dtype=torch.float32,
+            device=self.device,
+        ).unsqueeze(0)
+
+        neighbor_edges = torch.as_tensor(
+            obs_dict["neighbor_edges"],
+            dtype=torch.float32,
+            device=self.device,
+        ).unsqueeze(0)
+
+        task_features = torch.as_tensor(
+            obs_dict["task_features"],
+            dtype=torch.float32,
+            device=self.device,
+        ).unsqueeze(0)
+
+        action_mask = torch.as_tensor(
+            obs_dict["action_mask"],
+            dtype=torch.bool,
+            device=self.device,
+        ).unsqueeze(0)
+
+        # ---------------------------------------------------------
+        # Self node
+        # ---------------------------------------------------------
+        #
+        # Assuming local_history is:
+        #
+        # (seq_len, node_features)
+        #
+        # and the last timestep contains current self-node state.
+        #
+        # If your environment stores self_node separately,
+        # replace this with obs_dict["self_node"].
+        # ---------------------------------------------------------
+
+        if local_history.shape[1] == self.seq_len:
+            self_node = local_history[:, -1, :]
+
+        elif local_history.shape[2] == self.seq_len:
+            self_node = local_history[:, :, -1]
+
+        else:
+            raise ValueError(
+                "Invalid local_history shape: "
+                f"{tuple(local_history.shape)}"
+            )
+
+        # ---------------------------------------------------------
+        # Forward pass
+        # ---------------------------------------------------------
+
+        self.eval()
 
         with torch.no_grad():
-            fused, attn_weights = self.encode_fused_state(
-                local_hist, self_node, nbr_nodes, nbr_edges, task_feats, act_mask
+
+            fused_state, attention_weights = self.encode_fused_state(
+                local_history=local_history,
+                self_node=self_node,
+                neighbor_nodes=neighbor_nodes,
+                neighbor_edges=neighbor_edges,
+                task_features=task_features,
+                action_mask=action_mask,
             )
-            dist, logits = self.actor(fused, act_mask)
+
+            dist, logits = self.actor(
+                fused_state,
+                action_mask,
+            )
+
             if deterministic:
-                action = torch.argmax(dist.probs, dim=-1)
+                action = torch.argmax(
+                    dist.probs,
+                    dim=-1,
+                )
             else:
                 action = dist.sample()
 
             log_prob = dist.log_prob(action)
-            mean_val, var_val, _ = self.critic(fused)
+
+            mean_value, variance, _ = self.critic(
+                fused_state
+            )
 
         return {
             "action": int(action.item()),
             "log_prob": float(log_prob.item()),
-            "value": float(mean_val.item()),
-            "variance": float(var_val.item()),
-            "attention_weights": attn_weights.squeeze(0).numpy(),
-            "fused_state": fused.squeeze(0).numpy(),
+            "value": float(mean_value.item()),
+            "variance": float(variance.item()),
+            "attention_weights": (
+                attention_weights
+                .squeeze(0)
+                .detach()
+                .cpu()
+                .numpy()
+            ),
+            "fused_state": (
+                fused_state
+                .squeeze(0)
+                .detach()
+                .cpu()
+                .numpy()
+            ),
         }
+
+    # =============================================================
+    # PPO UPDATE
+    # =============================================================
 
     def update_policy(
         self,
@@ -242,45 +726,406 @@ class UAMAPPOAgent(nn.Module):
         returns: torch.Tensor,
         advantages: torch.Tensor,
         action_masks: Optional[torch.Tensor] = None,
+        epoch: int = 1,
+        total_epochs: Optional[int] = None,
     ) -> Dict[str, float]:
         """
-        Executes one PPO training update with uncertainty-aware objective penalty.
-        """
-        # Critic Update: Train all K ensemble heads on MSE against Monte Carlo returns
-        _, _, all_critic_preds = self.critic(states)  # (Batch, K)
-        critic_targets = returns.unsqueeze(-1).expand_as(all_critic_preds)
-        critic_loss = F.mse_loss(all_critic_preds, critic_targets)
+        Perform one PPO update.
 
-        self.critic_opt.zero_grad()
+        Args:
+            states:
+                Fused states, shape (B, fused_dim)
+
+            actions:
+                Action indices, shape (B,)
+
+            old_log_probs:
+                Log probabilities from old policy, shape (B,)
+
+            returns:
+                Target returns, shape (B,)
+
+            advantages:
+                Advantage estimates, shape (B,)
+
+            action_masks:
+                Optional action masks, shape (B, action_dim)
+
+            epoch:
+                Current epoch number.
+                This is VARIABLE and should be supplied by the training loop.
+
+            total_epochs:
+                Optional total number of epochs.
+                Used only for printing.
+
+        Returns:
+            Training metrics dictionary.
+        """
+
+        # ---------------------------------------------------------
+        # Training mode
+        # ---------------------------------------------------------
+
+        self.train()
+
+        # ---------------------------------------------------------
+        # Move tensors to device
+        # ---------------------------------------------------------
+
+        states = states.to(
+            self.device,
+            dtype=torch.float32,
+        )
+
+        actions = actions.to(
+            self.device,
+            dtype=torch.long,
+        )
+
+        old_log_probs = old_log_probs.to(
+            self.device,
+            dtype=torch.float32,
+        )
+
+        returns = returns.to(
+            self.device,
+            dtype=torch.float32,
+        )
+
+        advantages = advantages.to(
+            self.device,
+            dtype=torch.float32,
+        )
+
+        if action_masks is not None:
+            action_masks = action_masks.to(
+                self.device,
+                dtype=torch.bool,
+            )
+
+        # ---------------------------------------------------------
+        # Make sure tensors are 1-D where appropriate
+        # ---------------------------------------------------------
+
+        old_log_probs = old_log_probs.view(-1)
+        returns = returns.view(-1)
+        advantages = advantages.view(-1)
+        actions = actions.view(-1)
+
+        # ---------------------------------------------------------
+        # Advantage normalization
+        # ---------------------------------------------------------
+
+        advantages = (
+            advantages - advantages.mean()
+        ) / (
+            advantages.std(unbiased=False) + 1e-8
+        )
+
+        # =========================================================
+        # CRITIC UPDATE
+        # =========================================================
+
+        mean_value, variance, all_critic_preds = self.critic(
+            states
+        )
+
+        # returns:
+        # (B,)
+        #
+        # critic predictions:
+        # (B,K)
+
+        critic_targets = returns.unsqueeze(-1).expand_as(
+            all_critic_preds
+        )
+
+        critic_loss = F.mse_loss(
+            all_critic_preds,
+            critic_targets,
+        )
+
+        self.critic_opt.zero_grad(
+            set_to_none=True
+        )
+
         critic_loss.backward()
-        nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
+
+        nn.utils.clip_grad_norm_(
+            self.critic.parameters(),
+            max_norm=0.5,
+        )
+
         self.critic_opt.step()
 
-        # Actor Update: PPO clipped surrogate loss with variance penalty
-        dist, _ = self.actor(states, action_masks)
-        new_log_probs = dist.log_prob(actions)
+        # =========================================================
+        # ACTOR UPDATE
+        # =========================================================
+
+        dist, _ = self.actor(
+            states,
+            action_masks,
+        )
+
+        new_log_probs = dist.log_prob(
+            actions
+        )
+
         entropy = dist.entropy().mean()
 
-        ratio = torch.exp(new_log_probs - old_log_probs)
-        surr1 = ratio * advantages
-        surr2 = torch.clamp(ratio, 1.0 - self.clip_ratio, 1.0 + self.clip_ratio) * advantages
-        policy_loss = -torch.min(surr1, surr2).mean()
+        # ---------------------------------------------------------
+        # PPO ratio
+        # ---------------------------------------------------------
 
-        # Compute Q/Value epistemic variance to penalize uncertainty
+        ratio = torch.exp(
+            new_log_probs - old_log_probs
+        )
+
+        # ---------------------------------------------------------
+        # PPO clipped objective
+        # ---------------------------------------------------------
+
+        surr1 = (
+            ratio * advantages
+        )
+
+        surr2 = (
+            torch.clamp(
+                ratio,
+                1.0 - self.clip_ratio,
+                1.0 + self.clip_ratio,
+            )
+            * advantages
+        )
+
+        policy_loss = -torch.min(
+            surr1,
+            surr2,
+        ).mean()
+
+        # =========================================================
+        # UNCERTAINTY PENALTY
+        # =========================================================
+        #
+        # IMPORTANT:
+        #
+        # This uses the critic variance as a scalar penalty.
+        # Since it is calculated without gradient, it does not
+        # directly propagate uncertainty gradients into the actor.
+        #
+        # This preserves the behavior of your original code.
+        #
+        # For a truly action-dependent uncertainty-aware PPO,
+        # the critic should estimate V(s,a) or Q(s,a).
+        # =========================================================
+
         with torch.no_grad():
-            _, var_val, _ = self.critic(states)
+            _, variance_detached, _ = self.critic(
+                states
+            )
 
-        uncertainty_loss = self.mu_uncertainty * var_val.mean()
-        total_actor_loss = policy_loss + uncertainty_loss - self.entropy_coef * entropy
+        uncertainty_loss = (
+            self.mu_uncertainty
+            * variance_detached.mean()
+        )
 
-        self.actor_opt.zero_grad()
+        # ---------------------------------------------------------
+        # Total actor loss
+        # ---------------------------------------------------------
+
+        total_actor_loss = (
+            policy_loss
+            + uncertainty_loss
+            - self.entropy_coef * entropy
+        )
+
+        self.actor_opt.zero_grad(
+            set_to_none=True
+        )
+
         total_actor_loss.backward()
-        nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
+
+        # Clip all actor-side gradients, including
+        # SCNN, GATv2, PCAS and Actor.
+        actor_parameters = (
+            list(self.scnn.parameters())
+            + list(self.gatv2.parameters())
+            + list(self.pcas.parameters())
+            + list(self.actor.parameters())
+        )
+
+        nn.utils.clip_grad_norm_(
+            actor_parameters,
+            max_norm=0.5,
+        )
+
         self.actor_opt.step()
 
+        # =========================================================
+        # Metrics
+        # =========================================================
+
+        actor_loss_value = float(
+            policy_loss.item()
+        )
+
+        critic_loss_value = float(
+            critic_loss.item()
+        )
+
+        uncertainty_value = float(
+            uncertainty_loss.item()
+        )
+
+        entropy_value = float(
+            entropy.item()
+        )
+
+        mean_value_value = float(
+            mean_value.mean().item()
+        )
+
+        variance_value = float(
+            variance.mean().item()
+        )
+
+        # ---------------------------------------------------------
+        # DYNAMIC EPOCH PRINTING
+        # ---------------------------------------------------------
+
+        if total_epochs is not None:
+            print(
+                f"Epoch [{epoch}/{total_epochs}] | "
+                f"Actor Loss: {actor_loss_value:.4f} | "
+                f"Critic Loss: {critic_loss_value:.4f} | "
+                f"Uncertainty: {uncertainty_value:.4f} | "
+                f"Entropy: {entropy_value:.4f} | "
+                f"Value: {mean_value_value:.4f} | "
+                f"Variance: {variance_value:.4f}"
+            )
+        else:
+            print(
+                f"Epoch [{epoch}] | "
+                f"Actor Loss: {actor_loss_value:.4f} | "
+                f"Critic Loss: {critic_loss_value:.4f} | "
+                f"Uncertainty: {uncertainty_value:.4f} | "
+                f"Entropy: {entropy_value:.4f} | "
+                f"Value: {mean_value_value:.4f} | "
+                f"Variance: {variance_value:.4f}"
+            )
+
         return {
-            "actor_loss": float(policy_loss.item()),
-            "critic_loss": float(critic_loss.item()),
-            "uncertainty_penalty": float(uncertainty_loss.item()),
-            "entropy": float(entropy.item()),
+            "epoch": float(epoch),
+            "actor_loss": actor_loss_value,
+            "critic_loss": critic_loss_value,
+            "uncertainty_penalty": uncertainty_value,
+            "entropy": entropy_value,
+            "mean_value": mean_value_value,
+            "value_variance": variance_value,
         }
+
+
+# =============================================================
+# OPTIONAL TRAINING LOOP EXAMPLE
+# =============================================================
+
+def train_agent(
+    agent: UAMAPPOAgent,
+    states: torch.Tensor,
+    actions: torch.Tensor,
+    old_log_probs: torch.Tensor,
+    returns: torch.Tensor,
+    advantages: torch.Tensor,
+    action_masks: Optional[torch.Tensor] = None,
+    num_epochs: int = 10,
+) -> list:
+    """
+    Example PPO training loop.
+
+    num_epochs is a VARIABLE.
+
+    Example:
+
+        train_agent(
+            agent,
+            states,
+            actions,
+            old_log_probs,
+            returns,
+            advantages,
+            action_masks,
+            num_epochs=20,
+        )
+
+    Output:
+
+        Epoch [1/20] ...
+        Epoch [2/20] ...
+        ...
+        Epoch [20/20] ...
+    """
+
+    history = []
+
+    for epoch in range(
+        1,
+        num_epochs + 1,
+    ):
+
+        metrics = agent.update_policy(
+            states=states,
+            actions=actions,
+            old_log_probs=old_log_probs,
+            returns=returns,
+            advantages=advantages,
+            action_masks=action_masks,
+            epoch=epoch,
+            total_epochs=num_epochs,
+        )
+
+        history.append(metrics)
+
+    return history
+
+
+# =============================================================
+# TEST / DEBUG
+# =============================================================
+
+if __name__ == "__main__":
+
+    print("=" * 60)
+    print("UA-MAPPO Agent")
+    print("=" * 60)
+
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "cpu"
+    )
+
+    print(f"Device: {device}")
+
+    agent = UAMAPPOAgent(
+        node_in_dim=8,
+        edge_in_dim=4,
+        seq_len=10,
+        scnn_embed_dim=64,
+        gat_embed_dim=64,
+        max_neighbors=5,
+        num_critics=5,
+        mu_uncertainty=1.5,
+        lr_actor=3e-4,
+        lr_critic=1e-3,
+        gamma=0.99,
+        clip_ratio=0.2,
+        entropy_coef=0.01,
+        device=device,
+    )
+
+    print(f"Fused dimension: {agent.fused_dim}")
+    print(f"Action dimension: {agent.action_dim}")
+    print(f"Number of critics: {agent.num_critics}")
+
+    print("\nModel successfully initialized.")

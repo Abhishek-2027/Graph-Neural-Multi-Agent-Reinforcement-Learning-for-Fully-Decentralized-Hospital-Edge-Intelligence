@@ -26,7 +26,7 @@ def compute_gae(rewards, values, gamma=0.99, lam=0.95):
     returns = advantages + torch.tensor(values, dtype=torch.float32)
     return advantages, returns
 
-def train(epochs=300, steps_per_epoch=200):
+def train(epochs=4000, steps_per_epoch=300):
     print("============================================================")
     print("GraphMARL: Starting 50-Epoch Integration Training")
     print("============================================================\n")

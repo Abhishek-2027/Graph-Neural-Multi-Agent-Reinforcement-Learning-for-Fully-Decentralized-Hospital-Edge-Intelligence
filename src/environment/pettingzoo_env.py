@@ -353,23 +353,21 @@ class HospitalEdgeEnv:
                         node_crashed=agent in self.graph.crashed_nodes,
                     )
                     reward += task_reward_dict["total_reward"]
+                    # Strong bonus for completing tasks — primary learning signal
+                    reward += 3.0
                 
                 # Average reward over completions
                 reward /= len(new_completions)
             else:
-                # If no completions, give a small negative shaping reward for having queued tasks
-                q_len = pub_state["queue_length"]
+                # Shaping reward: penalize total neighborhood backlog (not just local queue)
+                total_backlog = float(sum(neighborhood_queues))
                 fats_bonus = self.amrf.lambda_fats * self.amrf.calculate_fats(neighborhood_queues)
-                reward = -0.01 * q_len + fats_bonus
-                
-                # Internal Error Fix: Prevent Ping-Pong Offloading
-                # If the agent chose to offload this step, penalize it to discourage infinite offloading
+                reward = -0.01 * total_backlog + fats_bonus
+
                 act = actions.get(agent, -1)
-                nbrs_len = len(self.neighbor_cache.get(agent, []))
-                if 1 <= act <= nbrs_len:
-                    reward -= 0.05 # Penalty for offloading to break the ping-pong loop
-                elif act == 0:
-                    reward += 0.5 # CPU FAST-TEST: Reward for executing locally
+                if act == self.action_dim - 1:
+                    # Discourage stalling via the wait/queue action
+                    reward -= 0.1
             
             rewards[agent] = reward
 

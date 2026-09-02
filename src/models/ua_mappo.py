@@ -728,6 +728,7 @@ class UAMAPPOAgent(nn.Module):
         action_masks: Optional[torch.Tensor] = None,
         epoch: int = 1,
         total_epochs: Optional[int] = None,
+        verbose: bool = True,
     ) -> Dict[str, float]:
         """
         Perform one PPO update.
@@ -994,26 +995,27 @@ class UAMAPPOAgent(nn.Module):
         # DYNAMIC EPOCH PRINTING
         # ---------------------------------------------------------
 
-        if total_epochs is not None:
-            print(
-                f"Epoch [{epoch}/{total_epochs}] | "
-                f"Actor Loss: {actor_loss_value:.4f} | "
-                f"Critic Loss: {critic_loss_value:.4f} | "
-                f"Uncertainty: {uncertainty_value:.4f} | "
-                f"Entropy: {entropy_value:.4f} | "
-                f"Value: {mean_value_value:.4f} | "
-                f"Variance: {variance_value:.4f}"
-            )
-        else:
-            print(
-                f"Epoch [{epoch}] | "
-                f"Actor Loss: {actor_loss_value:.4f} | "
-                f"Critic Loss: {critic_loss_value:.4f} | "
-                f"Uncertainty: {uncertainty_value:.4f} | "
-                f"Entropy: {entropy_value:.4f} | "
-                f"Value: {mean_value_value:.4f} | "
-                f"Variance: {variance_value:.4f}"
-            )
+        if verbose:
+            if total_epochs is not None:
+                print(
+                    f"Epoch [{epoch}/{total_epochs}] | "
+                    f"Actor Loss: {actor_loss_value:.4f} | "
+                    f"Critic Loss: {critic_loss_value:.4f} | "
+                    f"Uncertainty: {uncertainty_value:.4f} | "
+                    f"Entropy: {entropy_value:.4f} | "
+                    f"Value: {mean_value_value:.4f} | "
+                    f"Variance: {variance_value:.4f}"
+                )
+            else:
+                print(
+                    f"Epoch [{epoch}] | "
+                    f"Actor Loss: {actor_loss_value:.4f} | "
+                    f"Critic Loss: {critic_loss_value:.4f} | "
+                    f"Uncertainty: {uncertainty_value:.4f} | "
+                    f"Entropy: {entropy_value:.4f} | "
+                    f"Value: {mean_value_value:.4f} | "
+                    f"Variance: {variance_value:.4f}"
+                )
 
         return {
             "epoch": float(epoch),

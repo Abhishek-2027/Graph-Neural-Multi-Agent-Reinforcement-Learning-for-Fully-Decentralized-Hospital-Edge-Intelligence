@@ -1,178 +1,215 @@
 {
-  "timestamp": "2026-09-02T12:57:40.905099",
+  "timestamp": "2026-09-13T02:50:21.789045",
   "config": {
-    "bc_epochs": 100,
-    "ppo_epochs": 30,
-    "steps_per_epoch": 200,
+    "bc_epochs": 25,
+    "ppo_epochs": 1000,
+    "steps_per_epoch": 100,
     "ppo_update_epochs": 4,
     "seed": 42,
     "val_seeds": [
       999,
-      42,
-      123,
-      456,
-      789
-    ]
+      42
+    ],
+    "val_interval": 25
   },
   "bc_history": [
     {
-      "epoch": 96,
-      "loss": 0.009647995593868905,
-      "accuracy": 0.9986808896064758
+      "epoch": 21,
+      "loss": 0.37891212024471976
     },
     {
-      "epoch": 97,
-      "loss": 0.07624819782739949,
-      "accuracy": 0.9820032119750977
+      "epoch": 22,
+      "loss": 0.3674174330451272
     },
     {
-      "epoch": 98,
-      "loss": 0.0388059255423113,
-      "accuracy": 0.9893527030944824
+      "epoch": 23,
+      "loss": 0.41295500099658966
     },
     {
-      "epoch": 99,
-      "loss": 0.018239831906699,
-      "accuracy": 0.9981155395507812
+      "epoch": 24,
+      "loss": 0.3758614139123396
     },
     {
-      "epoch": 100,
-      "loss": 0.011477130043896892,
-      "accuracy": 0.9997173547744751
+      "epoch": 25,
+      "loss": 0.38330124345692723
     }
   ],
   "ppo_history": [
     {
-      "epoch": 7,
-      "train_reward": 47.54818828523568,
-      "val_reward": -2.355236927470395,
-      "val_completed": 332.6,
-      "val_latency": 93.44115704533894,
-      "val_deadline_misses": 31.4,
-      "actor_loss": -0.002029266906902194,
-      "critic_loss": 386.9827575683594
+      "epoch": 775,
+      "train_reward": 15.866967881481118,
+      "val_reward": 3.4698317032961192,
+      "val_completed": 138.0,
+      "val_latency": 45.713814724057045,
+      "val_deadline_misses": 37.0,
+      "actor_loss": 0.0033379115629941225,
+      "critic_loss": 46.38121032714844
     },
     {
-      "epoch": 8,
-      "train_reward": 49.637367975654904,
-      "val_reward": -1.147827527344073,
-      "val_completed": 332.0,
-      "val_latency": 92.4573111322602,
-      "val_deadline_misses": 30.6,
-      "actor_loss": -0.0037077420856803656,
-      "critic_loss": 398.2469177246094
+      "epoch": 800,
+      "train_reward": 21.784978497062042,
+      "val_reward": 10.761327131740055,
+      "val_completed": 151.5,
+      "val_latency": 47.53899664889191,
+      "val_deadline_misses": 27.5,
+      "actor_loss": 0.0028763972222805023,
+      "critic_loss": 36.636173248291016
     },
     {
-      "epoch": 9,
-      "train_reward": 55.594097387538405,
-      "val_reward": -5.579504267104068,
-      "val_completed": 332.6,
-      "val_latency": 96.77111325860551,
-      "val_deadline_misses": 31.6,
-      "actor_loss": -0.0021990591194480658,
-      "critic_loss": 477.1023864746094
+      "epoch": 825,
+      "train_reward": 6.308371481798582,
+      "val_reward": 10.13138578850262,
+      "val_completed": 151.5,
+      "val_latency": 45.323561745533866,
+      "val_deadline_misses": 27.0,
+      "actor_loss": 0.0025615026243031025,
+      "critic_loss": 74.11509704589844
     },
     {
-      "epoch": 10,
-      "train_reward": 69.91126109139381,
-      "val_reward": -2.762911396172643,
-      "val_completed": 332.4,
-      "val_latency": 94.7184725779866,
-      "val_deadline_misses": 30.8,
-      "actor_loss": -0.002493075327947736,
-      "critic_loss": 768.6382446289062
+      "epoch": 850,
+      "train_reward": 31.191552416380166,
+      "val_reward": 11.818682511860988,
+      "val_completed": 156.0,
+      "val_latency": 47.877474857839815,
+      "val_deadline_misses": 24.0,
+      "actor_loss": -0.0012036272091791034,
+      "critic_loss": 85.46075439453125
     },
     {
-      "epoch": 11,
-      "train_reward": 57.338152094202194,
-      "val_reward": -3.9248149212685504,
-      "val_completed": 332.0,
-      "val_latency": 95.1049900548617,
-      "val_deadline_misses": 31.2,
-      "actor_loss": -0.004789801314473152,
-      "critic_loss": 568.1575317382812
+      "epoch": 875,
+      "train_reward": 20.794766456732287,
+      "val_reward": -3.688678335662127,
+      "val_completed": 133.5,
+      "val_latency": 46.81185847967943,
+      "val_deadline_misses": 41.0,
+      "actor_loss": -0.0014548012986779213,
+      "critic_loss": 45.21345138549805
     },
     {
-      "epoch": 12,
-      "train_reward": 52.45579878094753,
-      "val_reward": -5.024357402128205,
-      "val_completed": 332.4,
-      "val_latency": 95.88832599766754,
-      "val_deadline_misses": 31.8,
-      "actor_loss": -0.002542763017117977,
-      "critic_loss": 432.9366149902344
+      "epoch": 900,
+      "train_reward": 9.814526290813545,
+      "val_reward": -4.367433386939458,
+      "val_completed": 125.5,
+      "val_latency": 36.7395008611543,
+      "val_deadline_misses": 47.0,
+      "actor_loss": 0.006488713901489973,
+      "critic_loss": 39.49138641357422
     },
     {
-      "epoch": 13,
-      "train_reward": 66.9057683482519,
-      "val_reward": -4.360234953491028,
-      "val_completed": 332.4,
-      "val_latency": 97.0555393356645,
-      "val_deadline_misses": 31.4,
-      "actor_loss": -0.0018125430215150118,
-      "critic_loss": 635.9462280273438
+      "epoch": 925,
+      "train_reward": 27.494321140746838,
+      "val_reward": 10.360794689224058,
+      "val_completed": 156.5,
+      "val_latency": 42.31296904263158,
+      "val_deadline_misses": 23.0,
+      "actor_loss": 0.002607023809105158,
+      "critic_loss": 42.53493881225586
     },
     {
-      "epoch": 14,
-      "train_reward": 60.598467259220165,
-      "val_reward": -3.9588837366261473,
-      "val_completed": 332.4,
-      "val_latency": 97.68177883851556,
-      "val_deadline_misses": 31.2,
-      "actor_loss": -0.0027342932298779488,
-      "critic_loss": 631.3642578125
+      "epoch": 950,
+      "train_reward": 29.043365541359538,
+      "val_reward": 8.91289599823067,
+      "val_completed": 151.5,
+      "val_latency": 44.080395148736656,
+      "val_deadline_misses": 27.5,
+      "actor_loss": -0.004231714177876711,
+      "critic_loss": 37.921321868896484
     },
     {
-      "epoch": 15,
-      "train_reward": 72.6918966818253,
-      "val_reward": -1.9610830379441069,
-      "val_completed": 332.2,
-      "val_latency": 96.05535718840528,
-      "val_deadline_misses": 30.4,
-      "actor_loss": -0.002166344318538904,
-      "critic_loss": 684.4734497070312
+      "epoch": 975,
+      "train_reward": 26.458748813090505,
+      "val_reward": 18.873587638947523,
+      "val_completed": 160.0,
+      "val_latency": 42.58508911343533,
+      "val_deadline_misses": 19.0,
+      "actor_loss": 0.005152822472155094,
+      "critic_loss": 59.11864471435547
     },
     {
-      "epoch": 16,
-      "train_reward": 53.489262656390885,
-      "val_reward": -3.029705851518834,
-      "val_completed": 332.2,
-      "val_latency": 97.35759526060534,
-      "val_deadline_misses": 30.8,
-      "actor_loss": -0.0011940706754103303,
-      "critic_loss": 412.74676513671875
+      "epoch": 1000,
+      "train_reward": 25.080378419837892,
+      "val_reward": 15.631373026480352,
+      "val_completed": 160.5,
+      "val_latency": 48.17647502387913,
+      "val_deadline_misses": 20.5,
+      "actor_loss": -0.002769794315099716,
+      "critic_loss": 54.75912857055664
     }
   ],
   "pre_ppo_validation": {
-    "completed": 332.4,
-    "completed_std": 11.706408501329518,
-    "avg_latency": 92.65718443763015,
-    "avg_latency_std": 15.635170097562334,
-    "deadline_misses": 31.6,
-    "deadline_misses_std": 6.887670143089026,
-    "avg_reward": -1.5796190002050565,
-    "avg_reward_std": 25.36783909673335,
-    "tasks_generated": 337.6,
-    "tasks_generated_std": 10.762899237658967,
-    "seeds_tested": 5
+    "completed": 134.5,
+    "completed_std": 0.5,
+    "completed_before_deadline": 124.5,
+    "completed_before_deadline_std": 1.5,
+    "completed_after_deadline": 10.0,
+    "completed_after_deadline_std": 1.0,
+    "unfinished_past_deadline": 39.5,
+    "unfinished_past_deadline_std": 6.5,
+    "unfinished_within_deadline": 8.0,
+    "unfinished_within_deadline_std": 1.0,
+    "dropped_or_cancelled": 0.0,
+    "dropped_or_cancelled_std": 0.0,
+    "avg_latency": 71.91193144131893,
+    "avg_latency_std": 19.033170969621725,
+    "avg_execution_time": 57.19311215564145,
+    "avg_execution_time_std": 10.976249406105929,
+    "throughput": 26.9,
+    "throughput_std": 0.09999999999999964,
+    "arrival_rate": 36.4,
+    "arrival_rate_std": 1.0,
+    "max_queue_len": 25.0,
+    "max_queue_len_std": 3.0,
+    "deadline_misses": 49.5,
+    "deadline_misses_std": 7.5,
+    "deadline_miss_rate": 0.27105048490890965,
+    "deadline_miss_rate_std": 0.03376234931568929,
+    "avg_reward": -33.6127438991752,
+    "avg_reward_std": 6.393058282319046,
+    "tasks_generated": 182.0,
+    "tasks_generated_std": 5.0,
+    "total_generated_tasks": 182.0,
+    "total_generated_tasks_std": 5.0,
+    "seeds_tested": 2
   },
   "final_validation": {
-    "completed": 332.0,
-    "completed_std": 11.349008767288886,
-    "avg_latency": 92.4573111322602,
-    "avg_latency_std": 15.696809873053681,
-    "deadline_misses": 30.6,
-    "deadline_misses_std": 7.49933330370107,
-    "avg_reward": -1.147827527344073,
-    "avg_reward_std": 25.193989286348128,
-    "tasks_generated": 337.6,
-    "tasks_generated_std": 10.762899237658967,
-    "seeds_tested": 5
+    "completed": 160.0,
+    "completed_std": 1.0,
+    "completed_before_deadline": 159.5,
+    "completed_before_deadline_std": 0.5,
+    "completed_after_deadline": 0.5,
+    "completed_after_deadline_std": 0.5,
+    "unfinished_past_deadline": 18.5,
+    "unfinished_past_deadline_std": 6.5,
+    "unfinished_within_deadline": 3.5,
+    "unfinished_within_deadline_std": 0.5,
+    "dropped_or_cancelled": 0.0,
+    "dropped_or_cancelled_std": 0.0,
+    "avg_latency": 42.58508911343533,
+    "avg_latency_std": 6.750294522185193,
+    "avg_execution_time": 29.27548129219548,
+    "avg_execution_time_std": 2.157820327852429,
+    "throughput": 32.0,
+    "throughput_std": 0.20000000000000107,
+    "arrival_rate": 36.4,
+    "arrival_rate_std": 1.0,
+    "max_queue_len": 2.0,
+    "max_queue_len_std": 0.0,
+    "deadline_misses": 19.0,
+    "deadline_misses_std": 6.0,
+    "deadline_miss_rate": 0.10356808362790418,
+    "deadline_miss_rate_std": 0.03012175594428835,
+    "avg_reward": 18.873587638947523,
+    "avg_reward_std": 4.043596633061057,
+    "tasks_generated": 182.0,
+    "tasks_generated_std": 5.0,
+    "total_generated_tasks": 182.0,
+    "total_generated_tasks_std": 5.0,
+    "seeds_tested": 2
   },
   "weights_updated": true,
   "checkpoints": {
     "imitation": "models/uamappo_imitation.pth",
     "best": "models/uamappo_best.pth",
-    "final": "models/uamappo_full_100bc_30ppo.pth"
+    "final": "models\\uamappo_full_25bc_1000ppo.pth"
   }
 }

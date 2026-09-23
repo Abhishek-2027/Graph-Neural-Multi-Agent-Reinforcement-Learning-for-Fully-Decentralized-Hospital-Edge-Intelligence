@@ -1,0 +1,9 @@
+graph LR
+    A[Input Vector 1D] --> B[Conv1D + ReLU]
+    B --> C[MaxPool1D]
+    C --> D[Conv1D + ReLU]
+    D --> E[MaxPool1D]
+    E --> F[Flatten Layer]
+    F --> G[Dense Feature Vector]
+    
+    style G fill:#e8f5e9,stroke:#2e7d32

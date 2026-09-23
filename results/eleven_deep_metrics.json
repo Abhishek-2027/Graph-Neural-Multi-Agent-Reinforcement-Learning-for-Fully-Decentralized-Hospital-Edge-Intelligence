@@ -1,0 +1,93 @@
+{
+  "50": {
+    "generated": 46.5,
+    "comp_before": 41.5,
+    "comp_after": 1.5,
+    "unfinished": 3.5,
+    "dropped": 0.0,
+    "service_rate": 8.600000000000001,
+    "cluster_util": 3.1814678611780174,
+    "queue_time": 13.772959401053424,
+    "exec_time": 30.491267182849253,
+    "tx_time": 0.500723357774401,
+    "miss_rate": 11.555555555555555
+  },
+  "100": {
+    "generated": 93.75,
+    "comp_before": 82.75,
+    "comp_after": 1.0,
+    "unfinished": 10.0,
+    "dropped": 0.0,
+    "service_rate": 16.75,
+    "cluster_util": 6.105080502468136,
+    "queue_time": 11.53661032479109,
+    "exec_time": 29.152241670045857,
+    "tx_time": 0.0,
+    "miss_rate": 11.209416863672182
+  },
+  "200": {
+    "generated": 193.0,
+    "comp_before": 165.5,
+    "comp_after": 3.0,
+    "unfinished": 24.5,
+    "dropped": 0.0,
+    "service_rate": 33.7,
+    "cluster_util": 13.80374793509749,
+    "queue_time": 22.069620607769835,
+    "exec_time": 32.58836627148888,
+    "tx_time": 0.1054687857521649,
+    "miss_rate": 12.211031452358927
+  },
+  "300": {
+    "generated": 296.0,
+    "comp_before": 245.5,
+    "comp_after": 5.0,
+    "unfinished": 45.5,
+    "dropped": 0.0,
+    "service_rate": 50.1,
+    "cluster_util": 20.633282087661495,
+    "queue_time": 33.3143647394423,
+    "exec_time": 32.38752519988375,
+    "tx_time": 0.2448926291342255,
+    "miss_rate": 14.203213904433417
+  },
+  "400": {
+    "generated": 395.5,
+    "comp_before": 264.0,
+    "comp_after": 2.75,
+    "unfinished": 128.75,
+    "dropped": 0.0,
+    "service_rate": 53.349999999999994,
+    "cluster_util": 17.039627953314987,
+    "queue_time": 45.49866582014506,
+    "exec_time": 25.611201907973623,
+    "tx_time": 0.08033266611903428,
+    "miss_rate": 26.285480565035606
+  },
+  "500": {
+    "generated": 499.25,
+    "comp_before": 294.5,
+    "comp_after": 4.0,
+    "unfinished": 200.75,
+    "dropped": 0.0,
+    "service_rate": 59.699999999999996,
+    "cluster_util": 19.850982273075996,
+    "queue_time": 44.79543397606518,
+    "exec_time": 26.66277735221055,
+    "tx_time": 0.10764071905053606,
+    "miss_rate": 34.805587480181245
+  },
+  "600": {
+    "generated": 598.75,
+    "comp_before": 288.5,
+    "comp_after": 2.25,
+    "unfinished": 306.75,
+    "dropped": 1.25,
+    "service_rate": 58.15,
+    "cluster_util": 16.5743391051179,
+    "queue_time": 45.04022642934417,
+    "exec_time": 22.81582586044771,
+    "tx_time": 0.1556818348677594,
+    "miss_rate": 45.25630252100841
+  }
+}

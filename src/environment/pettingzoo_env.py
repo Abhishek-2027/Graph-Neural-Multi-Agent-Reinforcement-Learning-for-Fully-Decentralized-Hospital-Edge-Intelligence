@@ -10,7 +10,7 @@ import numpy as np
 import simpy
 
 from src.environment.hospital_graph import HospitalGraph
-from src.data.workload_generator import WorkloadGenerator, MedicalTask
+from src.data.workload_generator import WorkloadGenerator, MedicalTask, TaskStatus
 from src.utils.amrf_reward import AMRFReward
 from src.utils.hsi_calculator import HSICalculator
 from src.agents.edge_node import EdgeNodeAgent
@@ -31,6 +31,8 @@ class HospitalEdgeEnv:
         max_neighbors: int = 5,
         history_len: int = 10,
         max_steps: int = 200,
+        task_arrival_prob: float = 0.2,
+        max_tasks: Optional[int] = None,
         seed: int = 42,
     ):
         self.rng = np.random.RandomState(seed)
@@ -44,6 +46,8 @@ class HospitalEdgeEnv:
         self.max_neighbors = max_neighbors
         self.history_len = history_len
         self.max_steps = max_steps
+        self.task_arrival_prob = float(task_arrival_prob)
+        self.max_tasks = max_tasks
         
         # Instantiate PCAS Forecaster for observation generation
         self.pcas = PCASCongestionForecaster(history_window=self.history_len)
@@ -68,6 +72,7 @@ class HospitalEdgeEnv:
         self.current_tasks: Dict[str, Optional[MedicalTask]] = {n: None for n in self.agents}
         self.neighbor_cache: Dict[str, List[str]] = {}
         self.recovery_metrics: Dict[str, int] = {"failures": 0, "orphaned": 0, "recovered": 0, "pending": 0}
+        self.all_tasks: List[MedicalTask] = []
 
     def reset(self, seed: Optional[int] = None) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
         if seed is not None:
@@ -75,6 +80,9 @@ class HospitalEdgeEnv:
 
         self.current_step = 0
         self.sim_time_ms = 0.0
+        self.all_tasks = []
+        if hasattr(self.workload_gen, "tasks_generated"):
+            self.workload_gen.tasks_generated = 0
         
         # Re-initialize SimPy and decentralized edge nodes
         self.sim_env = simpy.Environment()
@@ -95,6 +103,7 @@ class HospitalEdgeEnv:
         # Generate initial task for each agent directly into their queues
         for n in self.agents:
             task = self.workload_gen.sample_task(node_id=n, arrival_time_ms=self.sim_time_ms)
+            self.all_tasks.append(task)
             self.edge_nodes[n].push_task(task)
 
         # Initial Phase 7 Broadcasts to populate neighbor caches before first step
@@ -422,11 +431,21 @@ class HospitalEdgeEnv:
                         tx_delay = self.graph.calculate_transmission_delay_ms(agent, nbr, 128.0 / 1024.0 / 1024.0)
                         self.sim_env.process(self._transmit_message(msg, agent, nbr, tx_delay))
 
-            # Spawn next task for agent (simulate random arrival over this step)
-            # Probability based on time step
-            if self.rng.rand() < 0.2: # 20% chance per 50ms step
-                new_task = self.workload_gen.sample_task(node_id=agent, arrival_time_ms=self.sim_time_ms)
-                self.edge_nodes[agent].push_task(new_task)
+            # Spawn next task for agent (simulate arrival over this step based on task_arrival_prob)
+            can_spawn = self.max_tasks is None or self.workload_gen.tasks_generated < self.max_tasks
+            if can_spawn:
+                if self.task_arrival_prob <= 1.0:
+                    num_new = 1 if self.rng.rand() < self.task_arrival_prob else 0
+                else:
+                    num_new = int(self.task_arrival_prob) + (
+                        1 if self.rng.rand() < (self.task_arrival_prob - int(self.task_arrival_prob)) else 0
+                    )
+                for _ in range(num_new):
+                    if self.max_tasks is not None and self.workload_gen.tasks_generated >= self.max_tasks:
+                        break
+                    new_task = self.workload_gen.sample_task(node_id=agent, arrival_time_ms=self.sim_time_ms)
+                    self.all_tasks.append(new_task)
+                    self.edge_nodes[agent].push_task(new_task)
 
         terminated = {agent: self.current_step >= self.max_steps for agent in self.agents}
         truncated = {agent: False for agent in self.agents}

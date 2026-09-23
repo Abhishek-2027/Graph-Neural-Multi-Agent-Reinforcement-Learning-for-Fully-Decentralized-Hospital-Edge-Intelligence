@@ -167,3 +167,32 @@ Experiments under dynamic link degradation (ER → ICU link degraded by 85% at s
 | **Benchmark CSV** | [`results/benchmark_comparison.csv`](results/benchmark_comparison.csv) |
 | **Ablation CSV** | [`results/ablation_study_results.csv`](results/ablation_study_results.csv) |
 | **Unit Test Suite** | 13/13 passed (HSI, AMRF, GATv2, SCNN, PCAS, UA-MAPPO, DHGC, SHN, ANC, EDE) |
+
+---
+
+## 10. Base Paper vs GraphMARL Evaluation Graphs Comparison
+
+| Base Paper Graph (TP-DSDRL) | GraphMARL Equivalent / Status |
+| :--- | :--- |
+| **Fig. 1.** Architecture of healthcare monitoring.<br>![Fig. 1](extracted_graphs/image_4.png) | ![GraphMARL Fig 1](graphmarl_graphs/graphmarl_fig_1.png) |
+| **Fig. 2.** Structure of the proposed TP-DSDRL method.<br>![Fig. 2](extracted_graphs/image_5.png) | ![GraphMARL Fig 2](graphmarl_graphs/graphmarl_fig_2.png) |
+| **Fig. 3.** Design of the HTCF method.<br>![Fig. 3](extracted_graphs/image_6.png) | ![GraphMARL Fig 3](graphmarl_graphs/graphmarl_fig_3.png) |
+| **Fig. 4.** Architecture of the DSDRL method for Healthcare task offloading.<br>![Fig. 4](extracted_graphs/image_7.png) | ![GraphMARL Fig 4](graphmarl_graphs/graphmarl_fig_4.png) |
+| **Fig. 5.** Structure of SCNN.<br>![Fig. 5](extracted_graphs/image_8.png) | ![GraphMARL Fig 5](graphmarl_graphs/graphmarl_fig_5.png) |
+| **Fig. 6.** System Performance under increasing IoT devices against Latency, Energy Consumption, and Task Success Rate.<br>![Fig. 6](extracted_graphs/image_9.png) | ![GraphMARL Fig 6](graphmarl_graphs/graphmarl_fig_6.png) |
+| **Fig. 7.** Task Success Rate analysis of the proposed TP-DSDRL.<br>![Fig. 7](extracted_graphs/image_10.png) | ![GraphMARL Fig 7](graphmarl_graphs/graphmarl_fig_7.png) |
+| **Fig. 8.** Task priority level analysis of the proposed TP-DSDRL.<br>![Fig. 8](extracted_graphs/image_11.png) | ![GraphMARL Fig 8](graphmarl_graphs/graphmarl_fig_8.png) |
+| **Fig. 9.** Task utilization estimation of the proposed TP-DSDRL.<br>![Fig. 9](extracted_graphs/image_12.png) | ![GraphMARL Fig 9](graphmarl_graphs/graphmarl_fig_9.png) |
+| **Fig. 10.** Impact of the uncertainty-aware module of the proposed TP-DSDRL.<br>![Fig. 10](extracted_graphs/image_13.png) | ![GraphMARL Fig 10](graphmarl_graphs/graphmarl_fig_10.png) |
+| **Fig. 11.** Learning Performance of TP-DSDRL in terms of (a) Average Reward and Training Episodes and (b) Training Loss and Training Episodes.<br>![Fig. 11](extracted_graphs/image_14.png) | ![GraphMARL Fig 11](graphmarl_graphs/graphmarl_fig_11.png) |
+| **Fig. 12.** Healthcare Priority-Based Performance of the proposed TP-DSDRL method based on (a) Response Time and Task Priority and (b) Task offloading Distribution.<br>![Fig. 12](extracted_graphs/image_15.png) | ![GraphMARL Fig 12](graphmarl_graphs/graphmarl_fig_12.png) |
+| **Fig. 13.** Task offloading scalability system for the proposed TP-DSDRL method in comparison of Number of tasks with (a) Throughput and (b) Edge Resource.<br>![Fig. 13](extracted_graphs/image_16.png) | ![GraphMARL Fig 13](graphmarl_graphs/graphmarl_fig_13.png) |
+| **Fig. 14.** Task Processing Histogram of the proposed TP-DSDRL method over (a) latency and (b) Energy Consumption.<br>![Fig. 14](extracted_graphs/image_17.png) | ![GraphMARL Fig 14](graphmarl_graphs/graphmarl_fig_14.png) |
+| **Fig. 15.** Histogram of HSI over the patient risk level distribution.<br>![Fig. 15](extracted_graphs/image_18.png) | ![GraphMARL Fig 15](graphmarl_graphs/graphmarl_fig_15.png) |
+| **Fig. 16.** Histogram of Training Reward Distribution of the proposed TP-DSDRL.<br>![Fig. 16](extracted_graphs/image_19.png) | ![GraphMARL Fig 16](graphmarl_graphs/graphmarl_fig_16.png) |
+| **Fig. 17.** Probability density plot of the proposed TP-DSDRL method.<br>![Fig. 17](extracted_graphs/image_20.png) | ![GraphMARL Fig 17](graphmarl_graphs/graphmarl_fig_17.png) |
+| **Fig. 18.** Training reward convergence of the proposed TP-DSDRL method.<br>![Fig. 18](extracted_graphs/image_21.png) | ![GraphMARL Fig 18](graphmarl_graphs/graphmarl_fig_18.png) |
+| **Fig. 19.** Comparison of proposed TP-DSDRL technique against existing techniques (a) Latency (b) Execution Time.<br>![Fig. 19](extracted_graphs/image_22.png) | ![GraphMARL Fig 19](graphmarl_graphs/graphmarl_fig_19.png) |
+| **Fig. 20.** Comparison of proposed TP-DSDRL technique against existing techniques (a) Energy Consumption (b) System Throughput.<br>![Fig. 20](extracted_graphs/image_23.png) | ![GraphMARL Fig 20](graphmarl_graphs/graphmarl_fig_20.png) |
+| **Fig. 21.** Comparison of proposed TP-DSDRL technique against existing techniques (a) Processing Time (b) Average Resource Utilization.<br>![Fig. 21](extracted_graphs/image_24.png) | ![GraphMARL Fig 21](graphmarl_graphs/graphmarl_fig_21.png) |
+| **Fig. 22.** Comparative analysis for various techniques under different task loads (a) Average Task Offloading Delay (b) Energy Efficiency.<br>![Fig. 22](extracted_graphs/image_25.png) | ![GraphMARL Fig 22](graphmarl_graphs/graphmarl_fig_22.png) |

@@ -1,0 +1,33 @@
+graph TD
+    A[Medical IoT Devices] -->|Raw Vitals & Images| B(Hybrid Transformer-BiLSTM Feature Extraction)
+    B -->|Task Metadata| C[Health Severity Estimator]
+    C -->|Task ID, HSI, Compute Needs| D{Task Characterization Layer}
+    D -->|Incoming Task| E[Local Department Edge Node e.g., ICU, ER]
+    
+    subgraph Clinician Feedback
+    Z[Doctor/System Admin] -->|HITL Override Alert| C
+    end
+    
+    subgraph Decentralized Graph Intelligence
+    E --> F[Neighbor Discovery via ANC & ANNP]
+    F -->|Event-Driven Embeddings| G[Distributed Graph Construction & SHN]
+    G -->|Local State| H1[SCNN Feature Extractor]
+    G -->|Neighbor States + Edge Features| H2[GATv2 Encoder with Edge Attention]
+    H1 --> I{State Fusion}
+    H2 --> I
+    end
+    
+    subgraph Multi-Agent Decision Engine
+    I -->|Fused State & PCAS Prediction| J[UA-MARL MAPPO with AMRF & FATS]
+    J -->|Calculate Q-Variance| K{Explainable Decision Engine EDE}
+    end
+    
+    K -->|Decision + Explanation| L[Local Execution Queue]
+    K -->|Decision + Explanation| M[Neighbor Edge Node]
+    K -->|Decision + Explanation| N[Retry / Escalate]
+    
+    style A fill:#e1f5fe,stroke:#01579b
+    style J fill:#fff9c4,stroke:#fbc02d
+    style H2 fill:#e8f5e9,stroke:#2e7d32
+    style Z fill:#ffcdd2,stroke:#c62828
+    style K fill:#ffcc80,stroke:#e65100

@@ -1,0 +1,18 @@
+graph TD
+    A[Preprocessed Data & Metrics] --> S1[SCNN Input Layer]
+    S1 --> S2[1D Conv Layer + ReLU]
+    S2 --> S3[Max Pooling Layer]
+    S3 --> S4[Dense Layer]
+    S4 -->|Local Features| F[Feature Fusion Layer]
+    
+    A --> G1[Graph Construction]
+    G1 --> G2[GATv2 Input Node Features]
+    G2 --> G3[Attention Mechanism Head 1..K]
+    G3 --> G4[Edge Feature Integration]
+    G4 --> G5[Aggregated Neighbor Embeddings]
+    G5 -->|Contextual Features| F
+    
+    F -->|Fused State Representation| O[Output to MARL Engine]
+    
+    style F fill:#e8f5e9,stroke:#2e7d32
+    style G4 fill:#e1f5fe,stroke:#01579b

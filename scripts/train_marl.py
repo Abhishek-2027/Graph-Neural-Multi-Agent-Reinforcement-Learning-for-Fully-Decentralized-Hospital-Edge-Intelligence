@@ -26,25 +26,32 @@ def compute_gae(
     rewards: List[float],
     values: List[float],
     dones: List[bool],
+    next_value: float = 0.0,
     gamma: float = 0.99,
     lam: float = 0.95,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Computes Generalized Advantage Estimation (GAE) and Monte Carlo returns.
+    Computes Generalized Advantage Estimation (GAE) and Monte Carlo returns for an individual agent trajectory.
+
+    delta_t = r_t + gamma * V_{t+1} * (1 - done_t) - V_t
+    A_t = delta_t + gamma * lambda * (1 - done_t) * A_{t+1}
     """
     advantages = []
     gae = 0.0
-    values = values + [0.0]
-    for step in reversed(range(len(rewards))):
-        delta = rewards[step] + gamma * values[step + 1] * (1.0 - float(dones[step])) - values[step]
-        gae = delta + gamma * lam * (1.0 - float(dones[step])) * gae
-        advantages.insert(0, gae)
+    cur_next_val = float(next_value)
 
-    returns = [adv + val for adv, val in zip(advantages, values[:-1])]
+    for step in reversed(range(len(rewards))):
+        r = float(rewards[step])
+        v = float(values[step])
+        d = float(dones[step])
+        delta = r + gamma * cur_next_val * (1.0 - d) - v
+        gae = delta + gamma * lam * (1.0 - d) * gae
+        advantages.insert(0, gae)
+        cur_next_val = v
+
+    returns = [adv + val for adv, val in zip(advantages, values)]
     adv_tensor = torch.tensor(advantages, dtype=torch.float32)
     ret_tensor = torch.tensor(returns, dtype=torch.float32)
-    # Normalize advantages
-    adv_tensor = (adv_tensor - adv_tensor.mean()) / (adv_tensor.std() + 1e-8)
     return adv_tensor, ret_tensor
 
 
@@ -75,14 +82,19 @@ def train(
         ep_deadline_misses = []
         ep_emergencies = []
 
-        # Episode trajectory buffers
-        buf_states = []
-        buf_actions = []
-        buf_log_probs = []
-        buf_rewards = []
-        buf_values = []
-        buf_dones = []
-        buf_masks = []
+        # Per-agent trajectory buffers: preserves temporal sequence for each agent independently
+        agent_trajectories = {
+            a: {
+                "states": [],
+                "actions": [],
+                "log_probs": [],
+                "values": [],
+                "rewards": [],
+                "dones": [],
+                "masks": [],
+            }
+            for a in agents
+        }
 
         for step in range(steps_per_episode):
             actions = {}
@@ -92,18 +104,20 @@ def train(
 
                 actions[agent] = out["action"]
 
-                buf_states.append(out["fused_state"])
-                buf_actions.append(out["action"])
-                buf_log_probs.append(out["log_prob"])
-                buf_values.append(out["value"])
-                buf_masks.append(agent_obs["action_mask"])
+                agent_trajectories[agent]["states"].append(out["fused_state"])
+                agent_trajectories[agent]["actions"].append(out["action"])
+                agent_trajectories[agent]["log_probs"].append(out["log_prob"])
+                agent_trajectories[agent]["values"].append(out["value"])
+                agent_trajectories[agent]["masks"].append(agent_obs["action_mask"])
 
             next_obs, rewards, terminated, truncated, infos = env.step(actions)
 
             for agent in agents:
-                ep_rewards[agent].append(rewards[agent])
-                buf_rewards.append(rewards[agent])
-                buf_dones.append(terminated[agent])
+                rew = rewards[agent]
+                done = bool(terminated[agent] or truncated[agent])
+                ep_rewards[agent].append(rew)
+                agent_trajectories[agent]["rewards"].append(rew)
+                agent_trajectories[agent]["dones"].append(done)
 
                 if "latency_ms" in infos[agent]:
                     ep_latencies.append(infos[agent]["latency_ms"])
@@ -114,13 +128,52 @@ def train(
             if any(terminated.values()):
                 break
 
-        # Compute GAE across rollout
-        adv_tensor, ret_tensor = compute_gae(buf_rewards, buf_values, buf_dones)
+        # Compute GAE independently for each agent trajectory
+        all_states, all_actions, all_log_probs, all_masks = [], [], [], []
+        all_advantages, all_returns = [], []
 
-        t_states = torch.tensor(np.array(buf_states), dtype=torch.float32)
-        t_actions = torch.tensor(buf_actions, dtype=torch.int64)
-        t_old_log_probs = torch.tensor(buf_log_probs, dtype=torch.float32)
-        t_masks = torch.tensor(np.array(buf_masks), dtype=torch.float32)
+        for agent in agents:
+            t_data = agent_trajectories[agent]
+            if not t_data["rewards"]:
+                continue
+
+            last_done = t_data["dones"][-1]
+            if last_done:
+                next_val = 0.0
+            else:
+                with torch.no_grad():
+                    next_val = shared_agent.get_action_and_value(obs_dict[agent])["value"]
+
+            adv_i, ret_i = compute_gae(
+                rewards=t_data["rewards"],
+                values=t_data["values"],
+                dones=t_data["dones"],
+                next_value=next_val,
+                gamma=0.99,
+                lam=0.95,
+            )
+
+            all_states.extend(t_data["states"])
+            all_actions.extend(t_data["actions"])
+            all_log_probs.extend(t_data["log_probs"])
+            all_masks.extend(t_data["masks"])
+            all_advantages.append(adv_i)
+            all_returns.append(ret_i)
+
+        if not all_advantages:
+            continue
+
+        # Combine agent samples into the PPO training batch ONLY AFTER independent GAE
+        adv_tensor = torch.cat(all_advantages, dim=0)
+        ret_tensor = torch.cat(all_returns, dim=0)
+
+        # Normalize advantages across batch
+        adv_tensor = (adv_tensor - adv_tensor.mean()) / (adv_tensor.std() + 1e-8)
+
+        t_states = torch.tensor(np.array(all_states), dtype=torch.float32)
+        t_actions = torch.tensor(all_actions, dtype=torch.int64)
+        t_old_log_probs = torch.tensor(all_log_probs, dtype=torch.float32)
+        t_masks = torch.tensor(np.array(all_masks), dtype=torch.float32)
 
         # Optimize PPO policy
         metrics = shared_agent.update_policy(

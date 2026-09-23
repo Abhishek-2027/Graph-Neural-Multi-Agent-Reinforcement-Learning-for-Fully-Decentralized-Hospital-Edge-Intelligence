@@ -720,22 +720,23 @@ class UAMAPPOAgent(nn.Module):
 
     def update_policy(
         self,
-        states: torch.Tensor,
-        actions: torch.Tensor,
-        old_log_probs: torch.Tensor,
-        returns: torch.Tensor,
-        advantages: torch.Tensor,
+        states: Optional[torch.Tensor] = None,
+        actions: torch.Tensor = None,
+        old_log_probs: torch.Tensor = None,
+        returns: torch.Tensor = None,
+        advantages: torch.Tensor = None,
         action_masks: Optional[torch.Tensor] = None,
         epoch: int = 1,
         total_epochs: Optional[int] = None,
         verbose: bool = True,
+        obs_tensors: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Dict[str, float]:
         """
         Perform one PPO update.
 
         Args:
             states:
-                Fused states, shape (B, fused_dim)
+                Fused states, shape (B, fused_dim) (optional if obs_tensors is provided)
 
             actions:
                 Action indices, shape (B,)
@@ -754,11 +755,17 @@ class UAMAPPOAgent(nn.Module):
 
             epoch:
                 Current epoch number.
-                This is VARIABLE and should be supplied by the training loop.
 
             total_epochs:
                 Optional total number of epochs.
-                Used only for printing.
+
+            verbose:
+                Logging flag.
+
+            obs_tensors:
+                Optional dict of raw observation tensors (local_history, self_node,
+                neighbor_nodes, neighbor_edges, task_features) to allow end-to-end
+                gradient propagation into GATv2, SCNN, and PCAS.
 
         Returns:
             Training metrics dictionary.
@@ -771,13 +778,31 @@ class UAMAPPOAgent(nn.Module):
         self.train()
 
         # ---------------------------------------------------------
-        # Move tensors to device
+        # Encode state or move tensors to device
         # ---------------------------------------------------------
 
-        states = states.to(
-            self.device,
-            dtype=torch.float32,
-        )
+        if action_masks is not None:
+            action_masks = action_masks.to(
+                self.device,
+                dtype=torch.bool,
+            )
+
+        if obs_tensors is not None:
+            states, _ = self.encode_fused_state(
+                obs_tensors["local_history"].to(self.device, dtype=torch.float32),
+                obs_tensors["self_node"].to(self.device, dtype=torch.float32),
+                obs_tensors["neighbor_nodes"].to(self.device, dtype=torch.float32),
+                obs_tensors["neighbor_edges"].to(self.device, dtype=torch.float32),
+                obs_tensors["task_features"].to(self.device, dtype=torch.float32),
+                action_masks,
+            )
+            critic_states = states.detach()
+        else:
+            states = states.to(
+                self.device,
+                dtype=torch.float32,
+            )
+            critic_states = states
 
         actions = actions.to(
             self.device,
@@ -798,12 +823,6 @@ class UAMAPPOAgent(nn.Module):
             self.device,
             dtype=torch.float32,
         )
-
-        if action_masks is not None:
-            action_masks = action_masks.to(
-                self.device,
-                dtype=torch.bool,
-            )
 
         # ---------------------------------------------------------
         # Make sure tensors are 1-D where appropriate
@@ -829,7 +848,7 @@ class UAMAPPOAgent(nn.Module):
         # =========================================================
 
         mean_value, variance, all_critic_preds = self.critic(
-            states
+            critic_states
         )
 
         # returns:

@@ -1,0 +1,19 @@
+graph TD
+    A[Fused State S_t] --> B[Actor Network policy]
+    A --> C[Critic Network 1]
+    A --> D[Critic Network 2..K]
+    
+    C --> V1[Value Estimate V_1]
+    D --> VK[Value Estimate V_K]
+    
+    V1 --> E{Uncertainty Estimator Var Q}
+    VK --> E
+    
+    B --> F[Action Probabilities pi_t]
+    
+    E -->|High Variance Penalty| G[AMRF Reward Function]
+    F --> H[Sample Action a_t]
+    H -->|Task Offloading Decision| I[Local or Neighbor Edge Node]
+    
+    style E fill:#ffcdd2,stroke:#c62828
+    style G fill:#fff9c4,stroke:#fbc02d

@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph Perception Phase
+    A1[Local State Features] --> SCNN[Stacked CNN]
+    A2[Neighbor Embeddings via ANC] --> GNN[GATv2 Attention Network]
+    SCNN --> Fused[Fused State Representation]
+    GNN --> Fused
+    end
+    
+    subgraph Decision Phase
+    Fused --> PCAS[Predictive Congestion PCAS]
+    PCAS --> MARL[UA-MARL Policy with AMRF]
+    T[Task Priority / HSI / HITL] --> MARL
+    MARL -->|Evaluate Q-Variance & FATS| EDE[Explainable Decision Engine EDE]
+    EDE -->|Explainable Action| D{Decision Action}
+    end
+    
+    subgraph Execution Phase
+    D -->|Execute Local| E1[Local GPU/CPU]
+    D -->|Edge-to-Edge Offload Left| E2[Neighbor Dept A]
+    D -->|Edge-to-Edge Offload Right| E3[Neighbor Dept B]
+    D -->|Delay| E4[Wait Queue]
+    end
+    
+    subgraph Self-Healing
+    SHN[Self-Healing Network SHN] -.->|Monitor & Reroute| E1
+    SHN -.-> E2
+    SHN -.-> E3
+    end
+    
+    style GNN fill:#e8f5e9,stroke:#2e7d32
+    style MARL fill:#fff9c4,stroke:#fbc02d
+    style SCNN fill:#e8f5e9,stroke:#2e7d32
+    style EDE fill:#ffcc80,stroke:#e65100

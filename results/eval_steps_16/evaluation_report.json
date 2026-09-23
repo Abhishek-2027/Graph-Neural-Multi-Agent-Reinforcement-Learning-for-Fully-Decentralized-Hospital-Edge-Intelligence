@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-09-12T23:39:31.800578",
+  "model_path": "models\\uamappo_best.pth",
+  "test_seeds": [
+    999,
+    42,
+    123,
+    456,
+    789,
+    1001,
+    2024,
+    3141
+  ],
+  "steps_per_episode": 16,
+  "aggregated": {
+    "greedy": {
+      "completed": 15.625,
+      "completed_std": 3.119995993587171,
+      "avg_latency": 136.03922125917694,
+      "avg_latency_std": 39.10119039988653,
+      "deadline_misses": 1.375,
+      "deadline_misses_std": 0.9921567416492215,
+      "avg_reward": -4.903826287150952,
+      "avg_reward_std": 2.46506725755806,
+      "tasks_generated": 32.25,
+      "tasks_generated_std": 6.077622890571609,
+      "seeds_tested": 8
+    },
+    "local": {
+      "completed": 28.5,
+      "completed_std": 4.5,
+      "avg_latency": 64.09563409435864,
+      "avg_latency_std": 24.403634956379584,
+      "deadline_misses": 1.5,
+      "deadline_misses_std": 1.0,
+      "avg_reward": 2.674140098798441,
+      "avg_reward_std": 2.9935356302118836,
+      "tasks_generated": 32.25,
+      "tasks_generated_std": 6.077622890571609,
+      "seeds_tested": 8
+    },
+    "expert": {
+      "completed": 28.75,
+      "completed_std": 4.437059837324712,
+      "avg_latency": 64.72859348650934,
+      "avg_latency_std": 27.169690621700482,
+      "deadline_misses": 1.5,
+      "deadline_misses_std": 1.118033988749895,
+      "avg_reward": 3.0717310702091747,
+      "avg_reward_std": 3.075181526360565,
+      "tasks_generated": 32.25,
+      "tasks_generated_std": 6.077622890571609,
+      "seeds_tested": 8
+    },
+    "graphmarl": {
+      "completed": 28.5,
+      "completed_std": 4.5,
+      "avg_latency": 64.09563409435864,
+      "avg_latency_std": 24.403634956379584,
+      "deadline_misses": 1.5,
+      "deadline_misses_std": 1.0,
+      "avg_reward": 2.674140098798441,
+      "avg_reward_std": 2.9935356302118836,
+      "tasks_generated": 32.25,
+      "tasks_generated_std": 6.077622890571609,
+      "seeds_tested": 8
+    }
+  },
+  "vs_greedy": {
+    "completed": true,
+    "latency": true,
+    "deadline_misses": false,
+    "reward": true
+  },
+  "per_seed": {},
+  "methodology": {
+    "training": "Phase 1: Behavioral Cloning warm-start | Phase 2: UA-MAPPO PPO fine-tuning",
+    "evaluation": "Multi-seed unseen test workloads (fixed seeds, not used in BC demos)",
+    "baselines": [
+      "greedy (queue-based offload)",
+      "local (always local)",
+      "expert (conservative rule)"
+    ]
+  }
+}
